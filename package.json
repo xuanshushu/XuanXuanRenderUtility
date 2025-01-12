@@ -1,7 +1,7 @@
 {
-  "name": "com.r2.render.utility",
+  "name": "com.xuanxuan.render.utility",
   "version": "0.0.1",
-  "displayName": "R2RenderUtility",
-  "description": "R2共用渲染工具",
+  "displayName": "XuanXuanRenderUtility",
+  "description": "XuanXuanRenderUtility",
   "unity": "2019.1"
 }
