@@ -22,7 +22,8 @@ namespace UnityEditor
         public ShaderFlagsBase[] shaderFlags = null;
 
 
-        public void Init(MaterialEditor materialEditor, MaterialProperty[] properties, ShaderFlagsBase[] shaderFlags_in = null, List<Material> mats_in = null)
+        public void Init(MaterialEditor materialEditor, MaterialProperty[] properties,
+            ShaderFlagsBase[] shaderFlags_in = null, List<Material> mats_in = null)
         {
             shaderFlags = shaderFlags_in;
             ShaderPropertyPacks.Clear();
@@ -55,6 +56,7 @@ namespace UnityEditor
         }
 
         AnimBool trueAnimBool = new AnimBool(true);
+
         public void DrawBigBlock(String label, Action drawBlock)
         {
             EditorGUILayout.Space();
@@ -66,7 +68,7 @@ namespace UnityEditor
             GuiLine();
         }
 
-        public void DrawBigBlockFoldOut(ref AnimBool foldOutAnimBool,String label, Action drawBlock)
+        public void DrawBigBlockFoldOut(ref AnimBool foldOutAnimBool, String label, Action drawBlock)
         {
             EditorGUILayout.Space();
             EditorGUILayout.BeginHorizontal();
@@ -75,71 +77,75 @@ namespace UnityEditor
             // EditorGUI.DrawRect(foldoutRect,Color.red);
             var labelRect = new Rect(rect.x + 2f, rect.y, rect.width - 2f, rect.height);
             // EditorGUILayout.LabelField(new GUIContent(label), EditorStyles.boldLabel);
-            foldOutAnimBool.target =  EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
+            foldOutAnimBool.target = EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
             FontStyle origFontStyle = EditorStyles.label.fontStyle;
             EditorStyles.label.fontStyle = FontStyle.Bold;
-            EditorGUI.LabelField(labelRect,label);
+            EditorGUI.LabelField(labelRect, label);
             EditorStyles.label.fontStyle = origFontStyle;
             EditorGUILayout.EndHorizontal();
             float faded = foldOutAnimBool.faded;
             if (faded == 0) faded = 0.00001f;
             EditorGUILayout.BeginFadeGroup(faded);
-                EditorGUI.indentLevel++;
-                    drawBlock();
-                EditorGUI.indentLevel--;
+            EditorGUI.indentLevel++;
+            drawBlock();
+            EditorGUI.indentLevel--;
             EditorGUILayout.EndFadeGroup();
             GuiLine();
         }
 
-        public void DrawBigBlockWithToggle(String label, string propertyName,int flagBitsName = 0, int flagIndex = 0, string shaderKeyword = null, string shaderPassName = null, string shaderPassName2 = null, Action<bool> drawBlock = null)
+        public void DrawBigBlockWithToggle(String label, string propertyName, int flagBitsName = 0, int flagIndex = 0,
+            string shaderKeyword = null, string shaderPassName = null, string shaderPassName2 = null,
+            Action<bool> drawBlock = null)
         {
-           
-            DrawToggle(label,propertyName,flagBitsName,flagIndex,shaderKeyword,shaderPassName,shaderPassName2,isIndentBlock:true,FontStyle.Bold,drawBlock:drawBlock);
+
+            DrawToggle(label, propertyName, flagBitsName, flagIndex, shaderKeyword, shaderPassName, shaderPassName2,
+                isIndentBlock: true, FontStyle.Bold, drawBlock: drawBlock);
             GuiLine();
-            
+
         }
 
-        public void DrawToggleFoldOut( ref AnimBool foldOutAnimBool, String label, string propertyName = null, int flagBitsName = 0,
-            int flagIndex = 0, string shaderKeyword = null, string shaderPassName = null, bool isIndentBlock = true,FontStyle fontStyle = FontStyle.Normal,
-            Action<bool> drawBlock = null,Action<bool> drawEndChangeCheck = null)
+        public void DrawToggleFoldOut(ref AnimBool foldOutAnimBool, String label, string propertyName = null,
+            int flagBitsName = 0,
+            int flagIndex = 0, string shaderKeyword = null, string shaderPassName = null, bool isIndentBlock = true,
+            FontStyle fontStyle = FontStyle.Normal,
+            Action<bool> drawBlock = null, Action<bool> drawEndChangeCheck = null)
         {
             if (fontStyle == FontStyle.Bold)
             {
                 EditorGUILayout.Space();
             }
+
             EditorGUILayout.BeginHorizontal();
             var rect = EditorGUILayout.GetControlRect();
             var toggleRect = GetRectAfterLabelWidth(rect);
-    
+
             var foldoutRect = new Rect(rect.x, rect.y, rect.width, rect.height);
             foldoutRect.width = toggleRect.x - foldoutRect.x;
             var labelRect = new Rect(rect.x + 2f, rect.y, rect.width - 2f, rect.height);
-            
+
             bool isToggle = false;
             // 必须先画Toggle，不然按钮会被FoldOut和Label覆盖。
-            DrawToggle("", propertyName, flagBitsName, flagIndex, shaderKeyword, shaderPassName, isIndentBlock: false, fontStyle: FontStyle.Normal, rect: toggleRect, drawBlock:
-                toggle =>
-                {
-                    isToggle = toggle;
-                },drawEndChangeCheck: isEndChangeToggle =>
+            DrawToggle("", propertyName, flagBitsName, flagIndex, shaderKeyword, shaderPassName, isIndentBlock: false,
+                fontStyle: FontStyle.Normal, rect: toggleRect, drawBlock:
+                toggle => { isToggle = toggle; }, drawEndChangeCheck: isEndChangeToggle =>
                 {
                     if (drawEndChangeCheck != null)
                     {
                         drawEndChangeCheck(isEndChangeToggle);
                     }
                 });
-    
+
             // EditorGUI.DrawRect(foldoutRect,Color.red);
-            foldOutAnimBool.target =  EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
+            foldOutAnimBool.target = EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
             var origFontStyle = EditorStyles.label.fontStyle;
             EditorStyles.label.fontStyle = fontStyle;
             // EditorGUI.DrawRect(labelRect,Color.blue);
-            EditorGUI.LabelField(labelRect,label);
+            EditorGUI.LabelField(labelRect, label);
             EditorStyles.label.fontStyle = origFontStyle;
             EditorGUILayout.EndHorizontal();
-            if(isIndentBlock) EditorGUI.indentLevel++;
+            if (isIndentBlock) EditorGUI.indentLevel++;
             float faded = foldOutAnimBool.faded;
-            if (faded == 0) faded = 0.00001f;//用于欺骗FadeGroup，不要让他真的关闭了。这样会藏不住相关的GUI。我们的目的是，GUI藏住，但是逻辑还是在跑。drawBlock要执行。
+            if (faded == 0) faded = 0.00001f; //用于欺骗FadeGroup，不要让他真的关闭了。这样会藏不住相关的GUI。我们的目的是，GUI藏住，但是逻辑还是在跑。drawBlock要执行。
             EditorGUILayout.BeginFadeGroup(faded);
             {
                 EditorGUI.BeginDisabledGroup(!isToggle);
@@ -147,20 +153,24 @@ namespace UnityEditor
                 EditorGUI.EndDisabledGroup();
             }
             EditorGUILayout.EndFadeGroup();
-            if(isIndentBlock) EditorGUI.indentLevel--;
+            if (isIndentBlock) EditorGUI.indentLevel--;
         }
 
-        public void DrawToggle(String label, string propertyName = null,int flagBitsName = 0,int flagIndex = 0,string shaderKeyword = null,string shaderPassName = null, string shaderPassName2 = null ,bool isIndentBlock = true,FontStyle fontStyle = FontStyle.Normal ,Rect rect = new Rect(),Action<bool> drawBlock = null,Action<bool> drawEndChangeCheck = null)
+        public void DrawToggle(String label, string propertyName = null, int flagBitsName = 0, int flagIndex = 0,
+            string shaderKeyword = null, string shaderPassName = null, string shaderPassName2 = null,
+            bool isIndentBlock = true, FontStyle fontStyle = FontStyle.Normal, Rect rect = new Rect(),
+            Action<bool> drawBlock = null, Action<bool> drawEndChangeCheck = null)
         {
-            if(propertyName != null && GetProperty(propertyName) == null)
+            if (propertyName != null && GetProperty(propertyName) == null)
                 return;
-            
+
             if (fontStyle == FontStyle.Bold)
             {
                 EditorGUILayout.Space();
             }
+
             bool isToggle = false;
-            
+
             if (propertyName != null)
             {
                 isToggle = GetProperty(propertyName).floatValue > 0.5f ? true : false;
@@ -186,7 +196,7 @@ namespace UnityEditor
             {
                 EditorGUI.showMixedValue = GetProperty(propertyName).hasMixedValue;
             }
-            
+
             for (int i = 0; i < mats.Count; i++)
             {
                 if (isToggle)
@@ -195,10 +205,12 @@ namespace UnityEditor
                     {
                         mats[i].EnableKeyword(shaderKeyword);
                     }
+
                     if (shaderPassName != null)
                     {
                         mats[i].SetShaderPassEnabled(shaderPassName, true);
                     }
+
                     if (shaderPassName2 != null)
                     {
                         mats[i].SetShaderPassEnabled(shaderPassName2, true);
@@ -210,30 +222,33 @@ namespace UnityEditor
                     {
                         mats[i].DisableKeyword(shaderKeyword);
                     }
+
                     if (shaderPassName != null)
                     {
                         mats[i].SetShaderPassEnabled(shaderPassName, false);
                     }
+
                     if (shaderPassName2 != null)
                     {
                         mats[i].SetShaderPassEnabled(shaderPassName2, false);
                     }
                 }
             }
-            
+
             EditorGUI.BeginChangeCheck();
             var origFontStyle = EditorStyles.label.fontStyle;
             EditorStyles.label.fontStyle = fontStyle;
-            if (rect.width > 0)//给FoldOut功能使用。
+            if (rect.width > 0) //给FoldOut功能使用。
             {
-                isToggle = EditorGUI.Toggle(rect, isToggle,EditorStyles.toggle);
+                isToggle = EditorGUI.Toggle(rect, isToggle, EditorStyles.toggle);
             }
             else
             {
                 isToggle = EditorGUILayout.Toggle(label, isToggle);
             }
+
             EditorStyles.label.fontStyle = origFontStyle;
-            if (EditorGUI.EndChangeCheck()) 
+            if (EditorGUI.EndChangeCheck())
             {
                 for (int i = 0; i < mats.Count; i++)
                 {
@@ -258,6 +273,7 @@ namespace UnityEditor
                         {
                             mats[i].SetShaderPassEnabled(shaderPassName, true);
                         }
+
                         if (shaderPassName2 != null)
                         {
                             mats[i].SetShaderPassEnabled(shaderPassName2, true);
@@ -284,6 +300,7 @@ namespace UnityEditor
                         {
                             mats[i].SetShaderPassEnabled(shaderPassName, false);
                         }
+
                         if (shaderPassName2 != null)
                         {
                             mats[i].SetShaderPassEnabled(shaderPassName2, false);
@@ -293,14 +310,14 @@ namespace UnityEditor
 
                 drawEndChangeCheck?.Invoke(isToggle);
             }
-            
-            if(isIndentBlock) EditorGUI.indentLevel++;
+
+            if (isIndentBlock) EditorGUI.indentLevel++;
             drawBlock?.Invoke(isToggle);
-            if(isIndentBlock) EditorGUI.indentLevel--;
-            
+            if (isIndentBlock) EditorGUI.indentLevel--;
+
             EditorGUI.showMixedValue = false;
         }
-        
+
 
         public void DrawSlider(string label, string propertyName, float minValue, float maxValue,
             Action<float> drawBlock = null)
@@ -313,13 +330,15 @@ namespace UnityEditor
             {
                 GetProperty(propertyName).floatValue = f;
             }
+
             drawBlock?.Invoke(f);
 
             EditorGUI.showMixedValue = false;
         }
-        
 
-        public void DrawFloat(string label, string propertyName,bool isReciprocal = false, Action<float> drawBlock = null)
+
+        public void DrawFloat(string label, string propertyName, bool isReciprocal = false,
+            Action<float> drawBlock = null)
         {
             EditorGUI.showMixedValue = GetProperty(propertyName).hasMixedValue;
             float f = GetProperty(propertyName).floatValue;
@@ -327,43 +346,47 @@ namespace UnityEditor
             EditorGUI.BeginChangeCheck();
             f = EditorGUILayout.FloatField(label, f);
             if (isReciprocal) f = 1 / f;
-            if(EditorGUI.EndChangeCheck()) 
+            if (EditorGUI.EndChangeCheck())
             {
                 GetProperty(propertyName).floatValue = f;
             }
+
             drawBlock?.Invoke(f);
             EditorGUI.showMixedValue = false;
         }
 
-        public void DrawVector4In2Line(string propertyName,string firstLineLabel=null,string secondLineLabel =null,Action drawBlock = null)
+        public void DrawVector4In2Line(string propertyName, string firstLineLabel = null, string secondLineLabel = null,
+            Action drawBlock = null)
         {
             MaterialProperty property = GetProperty(propertyName);
-                EditorGUI.showMixedValue = property.hasMixedValue;
-            
+            EditorGUI.showMixedValue = property.hasMixedValue;
+
 
             Vector2 xy = new Vector2(property.vectorValue.x, property.vectorValue.y);
             Vector2 zw = new Vector2(property.vectorValue.z, property.vectorValue.w);
-            
+
             EditorGUI.BeginChangeCheck();
             if (firstLineLabel != null)
             {
-              xy = EditorGUILayout.Vector2Field(firstLineLabel, xy);
+                xy = EditorGUILayout.Vector2Field(firstLineLabel, xy);
             }
+
             if (secondLineLabel != null)
             {
                 zw = EditorGUILayout.Vector2Field(secondLineLabel, zw);
             }
+
             if (EditorGUI.EndChangeCheck())
             {
                 property.vectorValue = new Vector4(xy.x, xy.y, zw.x, zw.y);
             }
 
             drawBlock?.Invoke();
-                EditorGUI.showMixedValue = false;
-            
+            EditorGUI.showMixedValue = false;
+
         }
 
-        float GetCompInVec4(Vector4 vec,string comp)
+        float GetCompInVec4(Vector4 vec, string comp)
         {
             float f = 0;
             switch (comp)
@@ -402,26 +425,29 @@ namespace UnityEditor
                     vec.w = value;
                     break;
             }
+
             return vec;
         }
 
         public void DrawVector4MinMaxSlider(string propertyName, string Lable, string minChannel, string maxChanel,
-            float minValue = 0f, float maxValue = 1f,Action<float> drawBlock = null)
+            float minValue = 0f, float maxValue = 1f, Action<float> drawBlock = null)
         {
             EditorGUI.showMixedValue = GetProperty(propertyName).hasMixedValue;
             Vector4 vec = GetProperty(propertyName).vectorValue;
             float minChannelVal = GetCompInVec4(vec, minChannel);
             float maxChanelVal = GetCompInVec4(vec, maxChanel);
-            
+
             EditorGUI.BeginChangeCheck();
-            using(EditorGUILayout.HorizontalScope scope = new EditorGUILayout.HorizontalScope())
+            using (EditorGUILayout.HorizontalScope scope = new EditorGUILayout.HorizontalScope())
             {
                 EditorGUILayout.PrefixLabel(Lable);
-                minChannelVal = EditorGUILayout.FloatField(minChannelVal,new GUILayoutOption[]{GUILayout.Width(80)});
-                EditorGUILayout.MinMaxSlider(ref minChannelVal,ref maxChanelVal,minValue,maxValue);
-                maxChanelVal = EditorGUILayout.FloatField(maxChanelVal,new GUILayoutOption[]{GUILayout.Width(80)});
-            
+                minChannelVal =
+                    EditorGUILayout.FloatField(minChannelVal, new GUILayoutOption[] { GUILayout.Width(80) });
+                EditorGUILayout.MinMaxSlider(ref minChannelVal, ref maxChanelVal, minValue, maxValue);
+                maxChanelVal = EditorGUILayout.FloatField(maxChanelVal, new GUILayoutOption[] { GUILayout.Width(80) });
+
             }
+
             if (EditorGUI.EndChangeCheck())
             {
                 vec = SetCompInVec4(vec, minChannel, minChannelVal);
@@ -432,11 +458,14 @@ namespace UnityEditor
             EditorGUI.showMixedValue = false;
 
         }
-        public void DrawVector4Componet(string label, string propertyName, string channel, bool isSlider,float minValue = 0,float maxValue = 1,float powerSlider = 1,float multiplier = 1,bool isReciprocal = false,Action<float> drawBlock = null)
+
+        public void DrawVector4Componet(string label, string propertyName, string channel, bool isSlider,
+            float minValue = 0, float maxValue = 1, float powerSlider = 1, float multiplier = 1,
+            bool isReciprocal = false, Action<float> drawBlock = null)
         {
             EditorGUI.showMixedValue = GetProperty(propertyName).hasMixedValue;
             Vector4 vec = GetProperty(propertyName).vectorValue;
-            float f = GetCompInVec4(vec,channel);
+            float f = GetCompInVec4(vec, channel);
             f *= multiplier;
             if (isReciprocal) f = 1 / f;
             EditorGUI.BeginChangeCheck();
@@ -444,7 +473,7 @@ namespace UnityEditor
             {
                 if (powerSlider > 1)
                 {
-                   f= PowerSlider(EditorGUILayout.GetControlRect(new GUILayoutOption[] { GUILayout.Height(18) }),
+                    f = PowerSlider(EditorGUILayout.GetControlRect(new GUILayoutOption[] { GUILayout.Height(18) }),
                         new GUIContent(label), f, minValue, maxValue, powerSlider);
                 }
                 else
@@ -456,32 +485,36 @@ namespace UnityEditor
             {
                 f = EditorGUILayout.FloatField(label, f);
             }
+
             if (isReciprocal) f = 1 / f;
             f /= multiplier;
-            
-            if(EditorGUI.EndChangeCheck()) 
+
+            if (EditorGUI.EndChangeCheck())
             {
-                GetProperty(propertyName).vectorValue = SetCompInVec4(vec,channel,f);
+                GetProperty(propertyName).vectorValue = SetCompInVec4(vec, channel, f);
             }
+
             drawBlock?.Invoke(f);
             EditorGUI.showMixedValue = false;
         }
-        public void DrawVector4XYZComponet(string label, string propertyName,Action<Vector3> drawBlock = null)
+
+        public void DrawVector4XYZComponet(string label, string propertyName, Action<Vector3> drawBlock = null)
         {
             EditorGUI.showMixedValue = GetProperty(propertyName).hasMixedValue;
             Vector4 originVec = GetProperty(propertyName).vectorValue;
             Vector3 vec = originVec;
             EditorGUI.BeginChangeCheck();
             vec = EditorGUILayout.Vector3Field(label, vec);
-            if(EditorGUI.EndChangeCheck()) 
+            if (EditorGUI.EndChangeCheck())
             {
-                GetProperty(propertyName).vectorValue = new Vector4(vec.x,vec.y,vec.z,originVec.w);
+                GetProperty(propertyName).vectorValue = new Vector4(vec.x, vec.y, vec.z, originVec.w);
             }
+
             drawBlock?.Invoke(vec);
             EditorGUI.showMixedValue = false;
         }
-        
-        public  enum SamplerWarpMode
+
+        public enum SamplerWarpMode
         {
             Repeat,
             Clamp,
@@ -489,10 +522,10 @@ namespace UnityEditor
             ClampX_RepeatY
         }
 
-        public Rect GetRectAfterLabelWidth(Rect rect,bool ignoreIndent = false)
+        public Rect GetRectAfterLabelWidth(Rect rect, bool ignoreIndent = false)
         {
-            Rect rectAfterLabelWidth = MaterialEditor.GetRectAfterLabelWidth(rect);//右边缘是准的。
-            Rect leftAlignedFieldRect = MaterialEditor.GetLeftAlignedFieldRect(rect);//左边缘是准的，实际有2f空隙。
+            Rect rectAfterLabelWidth = MaterialEditor.GetRectAfterLabelWidth(rect); //右边缘是准的。
+            Rect leftAlignedFieldRect = MaterialEditor.GetLeftAlignedFieldRect(rect); //左边缘是准的，实际有2f空隙。
             float x = leftAlignedFieldRect.x + 2f;
             float width = rectAfterLabelWidth.x + rectAfterLabelWidth.width - x;
 
@@ -500,11 +533,11 @@ namespace UnityEditor
 
             if (ignoreIndent)
             {
-                float indent = (float) EditorGUI.indentLevel * 15f;
+                float indent = (float)EditorGUI.indentLevel * 15f;
                 newRec.x -= indent;
                 newRec.width += indent;
             }
-            
+
             // // EditorGUI.DrawRect(leftRect,Color.red);
             // float biasWidth = EditorGUI.indentLevel * 15f - 2f;
             // leftRect.x -= biasWidth;
@@ -519,40 +552,49 @@ namespace UnityEditor
         {
             EditorGUILayout.BeginHorizontal();
             var rect = EditorGUILayout.GetControlRect();
-            var foldoutRect = new Rect(rect.x, rect.y, rect.width-MaterialEditor.GetRectAfterLabelWidth(rect).width, rect.height);
+            var foldoutRect = new Rect(rect.x, rect.y, rect.width - MaterialEditor.GetRectAfterLabelWidth(rect).width,
+                rect.height);
             var textureThumbnialRect = new Rect(rect.x + 2f, rect.y, 14f, rect.height);
             var labelRect = new Rect(rect.x + 35f, rect.y, rect.width - 18f, rect.height);
-            Texture texture = matEditor.TexturePropertyMiniThumbnail(textureThumbnialRect, GetProperty(texturePropertyName), "", "");
-            EditorGUI.LabelField(labelRect,label);
-            
-            foldOutAnimBool.target =  EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
+            Texture texture =
+                matEditor.TexturePropertyMiniThumbnail(textureThumbnialRect, GetProperty(texturePropertyName), "", "");
+            EditorGUI.LabelField(labelRect, label);
+
+            foldOutAnimBool.target = EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
             if (colorPropertyName != null)
             {
-                Rect colorPropRect = GetRectAfterLabelWidth(rect,true);
+                Rect colorPropRect = GetRectAfterLabelWidth(rect, true);
                 // colorPropRect.x -= EditorGUI.indentLevel
                 Color color = matEditor.ColorProperty(colorPropRect, GetProperty(colorPropertyName), "");
             }
+
             EditorGUILayout.EndHorizontal();
             float faded = foldOutAnimBool.faded;
             if (faded == 0) faded = 0.00001f;
             EditorGUILayout.BeginFadeGroup(faded);
-                EditorGUI.BeginDisabledGroup(texture == null);
-                
-                DrawAfterTexture(true,label,texturePropertyName,drawScaleOffset,drawWrapMode,flagBitsName,flagIndex,drawBlock);
-                
-                EditorGUI.EndDisabledGroup();
+            EditorGUI.BeginDisabledGroup(texture == null);
+
+            DrawAfterTexture(true, label, texturePropertyName, drawScaleOffset, drawWrapMode, flagBitsName, flagIndex,
+                drawBlock);
+
+            EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndFadeGroup();
         }
 
         public void DrawTexture(string label, string texturePropertyName, string colorPropertyName = null,
-            bool drawScaleOffset = true, bool drawWrapMode = false, int flagBitsName = 0, int flagIndex = 2,Action<Texture> drawBlock = null)
+            bool drawScaleOffset = true, bool drawWrapMode = false, int flagBitsName = 0, int flagIndex = 2,
+            Action<Texture> drawBlock = null)
         {
             bool hasTexture = mats[0].GetTexture(texturePropertyName) != null;
-            matEditor.TexturePropertySingleLine(new GUIContent(label), GetProperty(texturePropertyName),GetProperty(colorPropertyName));
-            DrawAfterTexture(hasTexture,label,texturePropertyName,drawScaleOffset,drawWrapMode,flagBitsName,flagIndex,drawBlock);
+            matEditor.TexturePropertySingleLine(new GUIContent(label), GetProperty(texturePropertyName),
+                GetProperty(colorPropertyName));
+            DrawAfterTexture(hasTexture, label, texturePropertyName, drawScaleOffset, drawWrapMode, flagBitsName,
+                flagIndex, drawBlock);
         }
 
-        public void DrawAfterTexture(bool hasTexture,string label, string texturePropertyName,bool drawScaleOffset = true,bool drawWrapMode = false,int flagBitsName = 0,int flagIndex = 2,Action<Texture> drawBlock = null)
+        public void DrawAfterTexture(bool hasTexture, string label, string texturePropertyName,
+            bool drawScaleOffset = true, bool drawWrapMode = false, int flagBitsName = 0, int flagIndex = 2,
+            Action<Texture> drawBlock = null)
         {
             EditorGUI.indentLevel++;
             EditorGUI.BeginDisabledGroup(!hasTexture);
@@ -561,7 +603,9 @@ namespace UnityEditor
                 for (int i = 0; i < mats.Count; i++)
                 {
                     int tmpWrapMode = shaderFlags[i].CheckFlagBits(flagBitsName, index: flagIndex) ? 1 : 0;
-                    tmpWrapMode = shaderFlags[i].CheckFlagBits(flagBitsName << 16, index: flagIndex) ? tmpWrapMode + 2 : tmpWrapMode;
+                    tmpWrapMode = shaderFlags[i].CheckFlagBits(flagBitsName << 16, index: flagIndex)
+                        ? tmpWrapMode + 2
+                        : tmpWrapMode;
                     tmpWrapMode = EditorGUILayout.Popup(new GUIContent(label + "循环模式"), tmpWrapMode,
                         Enum.GetNames(typeof(SamplerWarpMode)));
                     switch (tmpWrapMode)
@@ -590,17 +634,18 @@ namespace UnityEditor
             {
                 matEditor.TextureScaleOffsetProperty(GetProperty(texturePropertyName));
             }
-            
+
             drawBlock?.Invoke(GetProperty(texturePropertyName).textureValue);
             EditorGUI.indentLevel--;
             EditorGUI.EndDisabledGroup();
         }
-        
 
-        public void DrawPopUp(string label, string propertyName, string[] options, string[] toolTips = null,Action<float> drawBlock = null)
+
+        public void DrawPopUp(string label, string propertyName, string[] options, string[] toolTips = null,
+            Action<float> drawBlock = null)
         {
             MaterialProperty property = GetProperty(propertyName);
-            if(property == null) return;
+            if (property == null) return;
             EditorGUI.showMixedValue = property.hasMixedValue;
 
             float mode = property.floatValue;
@@ -617,7 +662,7 @@ namespace UnityEditor
                     optionGUIContents[i] = new GUIContent(options[i]);
                 }
             }
-            
+
             mode = EditorGUILayout.Popup(new GUIContent(label), (int)mode, optionGUIContents);
             if (EditorGUI.EndChangeCheck())
             {
@@ -625,7 +670,7 @@ namespace UnityEditor
             }
 
             drawBlock?.Invoke(mode);
-            
+
             EditorGUI.showMixedValue = false;
         }
 
@@ -638,6 +683,7 @@ namespace UnityEditor
                     return pack.property;
                 }
             }
+
             // Debug.LogError("材质球" + mat.name + "找不到属性" + propertyName, mat);
             return null;
         }
@@ -647,35 +693,39 @@ namespace UnityEditor
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Queue：" + mats[0].renderQueue);
             int QueueBias = (int)queueBiasProp.floatValue;
-            QueueBias= EditorGUILayout.IntField("QueueBias:", QueueBias);
+            QueueBias = EditorGUILayout.IntField("QueueBias:", QueueBias);
             queueBiasProp.floatValue = QueueBias;
             EditorGUILayout.EndHorizontal();
         }
-        
-        void GuiLine( int i_height = 1 )
+
+        void GuiLine(int i_height = 1)
         {
 
-            Rect rect = EditorGUILayout.GetControlRect(false, i_height );
+            Rect rect = EditorGUILayout.GetControlRect(false, i_height);
             rect.height = i_height;
-            EditorGUI.DrawRect(rect, new Color ( 0.5f,0.5f,0.5f, 0.5f ) );
+            EditorGUI.DrawRect(rect, new Color(0.5f, 0.5f, 0.5f, 0.5f));
 
         }
-        
-        public static float PowerSlider(Rect position, GUIContent label, float value, float leftValue, float rightValue, float power) 
+
+        public static float PowerSlider(Rect position, GUIContent label, float value, float leftValue, float rightValue,
+            float power)
         {
             var editorGuiType = typeof(EditorGUI);
             var methodInfo = editorGuiType.GetMethod(
                 "PowerSlider",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                 null,
-                new[] {typeof(Rect), typeof(GUIContent), typeof(float), typeof(float), typeof(float), typeof(float)},
+                new[] { typeof(Rect), typeof(GUIContent), typeof(float), typeof(float), typeof(float), typeof(float) },
                 null);
-            if (methodInfo != null) {
-                return (float)methodInfo.Invoke(null, new object[]{position, label, value, leftValue, rightValue, power});
+            if (methodInfo != null)
+            {
+                return (float)methodInfo.Invoke(null,
+                    new object[] { position, label, value, leftValue, rightValue, power });
             }
+
             return leftValue;
         }
-       
+
 
     }
 }

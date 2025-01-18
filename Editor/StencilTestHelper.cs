@@ -3,36 +3,30 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using Sirenix.OdinInspector;
-using Sirenix.OdinInspector.Editor;
+// using Sirenix.OdinInspector;
+// using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 
 namespace stencilTestHelper
 {
-    // [CreateAssetMenu(fileName = "StencilConfig", menuName = "ScriptableObjects/CreateStencilConfig", order = 1)]
-    // public class StencilValuesConfig : SerializedScriptableObject
-    // {
-    //     [DictionaryDrawerSettings(DisplayMode = DictionaryDisplayOptions.ExpandedFoldout)]
-    //     public Dictionary<string, StencilValues> Config = new Dictionary<string, StencilValues>();
-    // }
 
+    [Serializable]
     public class StencilValues
     {
         public int DefaultQueue = 2000;
-        [LabelText("Ref\t\t")]
-        [BinaryInt(8,true)]
+        [BinaryInt(8,true,2)]
         public int Ref = 0;
         public CompareFunction Comp = CompareFunction.Always;
-
         public StencilOp Pass = StencilOp.Keep;
         public StencilOp Fail = StencilOp.Keep;
         public StencilOp ZFail = StencilOp.Keep;
-
-        [BinaryInt(8,true)]
+        [BinaryInt(8,true,1)]
         public int ReadMask = 255;
-        [BinaryInt(8,true)]
+        [BinaryInt(8,true,1)]
         public int WriteMask = 255;
     }
+
+
 
     public static class StencilTestHelper
     {
@@ -107,9 +101,9 @@ namespace stencilTestHelper
             }
 
             StencilValues stencilValues;
-            if (stencilValuesConfig.Config.ContainsKey(stencilConfigKey))
+            if (stencilValuesConfig.ContainsKey(stencilConfigKey))
             {
-                stencilValues = stencilValuesConfig.Config[stencilConfigKey];
+                stencilValues = stencilValuesConfig[stencilConfigKey];
                 if (!string.IsNullOrEmpty(stencilPropertyNames.stencil))
                 {
                     mat.SetFloat(stencilPropertyNames.stencil, stencilValues.Ref);
