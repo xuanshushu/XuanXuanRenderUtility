@@ -1,5 +1,5 @@
-#ifndef MH2_UTILITY
-#define MH2_UTILITY
+#ifndef XUANXUAN_UTILITY
+#define XUANXUAN_UTILITY
 
 
 

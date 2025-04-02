@@ -28,28 +28,29 @@ public class BinaryIntDrawer : PropertyDrawer
         GUIStyle richTextStyle = EditorStyles.label;
         richTextStyle.richText = true;
         BinaryIntAttribute binaryIntAttribute = (BinaryIntAttribute)attribute; 
-        int value = property.intValue;
-        int largestBit = 0;
-        for (int i = 0; i < 32; i++)
-        {
-            if ((~value & (1 << i)) == 0)
-            {
-                largestBit = i;
-            }
-        }
-
-        int addZeroCount = 0;
-        if (largestBit < binaryIntAttribute.binaryBits)
-        {
-            addZeroCount = binaryIntAttribute.binaryBits - largestBit - 1;
-        }
-
-        string addZeroString = "";
-        for (int i = 0; i < addZeroCount; i++)
-        {
-            addZeroString += "0";
-        }
-        string binary = addZeroString+Convert.ToString(property.intValue, 2);
+        // int value = property.intValue;
+        // int largestBit = 0;
+        // for (int i = 0; i < 32; i++)
+        // {
+        //     if ((~value & (1 << i)) == 0)
+        //     {
+        //         largestBit = i;
+        //     }
+        // }
+        //
+        // int addZeroCount = 0;
+        // if (largestBit < binaryIntAttribute.binaryBits)
+        // {
+        //     addZeroCount = binaryIntAttribute.binaryBits - largestBit - 1;
+        // }
+        //
+        // string addZeroString = "";
+        // for (int i = 0; i < addZeroCount; i++)
+        // {
+        //     addZeroString += "0";
+        // }
+        // string binary = addZeroString+Convert.ToString(property.intValue, 2);
+        string binary = DrawBinaryInt(property.intValue, binaryIntAttribute.binaryBits);
 
         string tabs = "";
         for (int i = 0; i < binaryIntAttribute.tabNums; i++)
@@ -68,6 +69,32 @@ public class BinaryIntDrawer : PropertyDrawer
             EditorGUILayout.LabelField(property.displayName + tabs);
             EditorGUILayout.LabelField(binary);
         }
+    }
+
+    public static string DrawBinaryInt(int value ,int binaryBits)
+    {
+        int largestBit = 0;
+        for (int i = 0; i < 32; i++)
+        {
+            if ((~value & (1 << i)) == 0)
+            {
+                largestBit = i;
+            }
+        }
+
+        int addZeroCount = 0;
+        if (largestBit < binaryBits)
+        {
+            addZeroCount = binaryBits - largestBit - 1;
+        }
+
+        string addZeroString = "";
+        for (int i = 0; i < addZeroCount; i++)
+        {
+            addZeroString += "0";
+        }
+        string binary = addZeroString+Convert.ToString(value, 2);
+        return binary;
     }
 }
     

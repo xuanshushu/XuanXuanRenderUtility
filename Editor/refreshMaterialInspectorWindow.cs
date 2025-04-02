@@ -88,7 +88,7 @@ public class RefreshMaterialInspectorWindow : EditorWindow
     //     foreach (UnityEngine.Object o in Selection.GetFiltered(typeof(Material), SelectionMode.DeepAssets))
     //     {
     //         Material mat = o as Material;
-    //         if (mat.shader.name == "Mh2/Effects/Particle_NiuBi")
+    //         if (mat.shader.name == "XuanXuan/Effects/Particle_NiuBi")
     //         {
     //             bool isToggle = mat.GetFloat(id) > 0.5f;
     //             if (isToggle)
@@ -118,7 +118,7 @@ public class RefreshMaterialInspectorWindow : EditorWindow
     // public static void SetParticleMaterialWrapMode(Material mat)
     // {
     //     
-    //     if (mat.shader.name == "Mh2/Effects/Particle_NiuBi")
+    //     if (mat.shader.name == "XuanXuan/Effects/Particle_NiuBi")
     //     {
     //         W9ParticleShaderFlags flags = new W9ParticleShaderFlags(mat);
     //         SetWrapModeFlag(flags,mat,"_BaseMap",W9ParticleShaderFlags.FLAG_BIT_WRAPMODE_BASEMAP);
@@ -137,7 +137,7 @@ public class RefreshMaterialInspectorWindow : EditorWindow
     //
     // public static void SetParticleMaterialMaskStrenth(Material mat)
     // {
-    //     if (mat.shader.name == "Mh2/Effects/Particle_NiuBi")
+    //     if (mat.shader.name == "XuanXuan/Effects/Particle_NiuBi")
     //     {
     //         Vector4 vec = mat.GetVector("_MaskMap3OffsetAnition");
     //         if (vec.z < 1)

@@ -1,7 +1,7 @@
 ﻿#ifndef MH2_PARRALLEX_CRYSTAL_FUNCITON
 #define MH2_PARRALLEX_CRYSTAL_FUNCITON
 
-#include "Packages/com.xuanxuan.render.utility/Shader/HLSL/Mh2_Utility.hlsl"
+#include "Packages/com.xuanxuan.render.utility/Shader/HLSL/XuanXuan_Utility.hlsl"
 
 TEXTURE2D(_BaseMap);
 SAMPLER(sampler_BaseMap);
