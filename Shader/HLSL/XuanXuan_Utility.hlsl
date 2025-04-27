@@ -15,13 +15,13 @@
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
-inline half Mh2Remap(half x, half inMin, half inMax, half outMin, half outMax)
+inline half NB_Remap(half x, half inMin, half inMax, half outMin, half outMax)
 {
     // x=  clamp(x,inMin,inMax);
     return saturate((x - inMin) / (inMax - inMin)) * (outMax - outMin) + outMin;
 }
 
-inline half Mh2RemapNoClamp(half x, half inMin, half inMax, half outMin, half outMax)
+inline half NB_RemapNoClamp(half x, half inMin, half inMax, half outMin, half outMax)
 {
     // x=  clamp(x,inMin,inMax);
     return ((x - inMin) / (inMax - inMin)) * (outMax - outMin) + outMin;
