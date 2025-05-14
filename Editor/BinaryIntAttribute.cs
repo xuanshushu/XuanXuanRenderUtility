@@ -1,7 +1,7 @@
 ﻿using UnityEditor;
 using UnityEngine;
 using System;
-using Unity.Properties;
+// using Unity.Properties;
 
 public class BinaryIntAttribute : PropertyAttribute
 {
