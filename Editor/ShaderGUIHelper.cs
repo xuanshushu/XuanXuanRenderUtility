@@ -600,10 +600,11 @@ namespace UnityEditor
             EditorGUI.BeginDisabledGroup(!hasTexture);
             if (drawWrapMode)
             {
-                for (int i = 0; i < mats.Count; i++)
+                //这个多选材质就不出现了，不好处理
+                if (mats.Count == 1)
                 {
-                    int tmpWrapMode = shaderFlags[i].CheckFlagBits(flagBitsName, index: flagIndex) ? 1 : 0;
-                    tmpWrapMode = shaderFlags[i].CheckFlagBits(flagBitsName << 16, index: flagIndex)
+                    int tmpWrapMode = shaderFlags[0].CheckFlagBits(flagBitsName, index: flagIndex) ? 1 : 0;
+                    tmpWrapMode = shaderFlags[0].CheckFlagBits(flagBitsName << 16, index: flagIndex)
                         ? tmpWrapMode + 2
                         : tmpWrapMode;
                     tmpWrapMode = EditorGUILayout.Popup(new GUIContent(label + "循环模式"), tmpWrapMode,
@@ -611,20 +612,20 @@ namespace UnityEditor
                     switch (tmpWrapMode)
                     {
                         case 0:
-                            shaderFlags[i].ClearFlagBits(flagBitsName, index: flagIndex);
-                            shaderFlags[i].ClearFlagBits(flagBitsName << 16, index: flagIndex);
+                            shaderFlags[0].ClearFlagBits(flagBitsName, index: flagIndex);
+                            shaderFlags[0].ClearFlagBits(flagBitsName << 16, index: flagIndex);
                             break;
                         case 1:
-                            shaderFlags[i].SetFlagBits(flagBitsName, index: flagIndex);
-                            shaderFlags[i].ClearFlagBits(flagBitsName << 16, index: flagIndex);
+                            shaderFlags[0].SetFlagBits(flagBitsName, index: flagIndex);
+                            shaderFlags[0].ClearFlagBits(flagBitsName << 16, index: flagIndex);
                             break;
                         case 2:
-                            shaderFlags[i].ClearFlagBits(flagBitsName, index: flagIndex);
-                            shaderFlags[i].SetFlagBits(flagBitsName << 16, index: flagIndex);
+                            shaderFlags[0].ClearFlagBits(flagBitsName, index: flagIndex);
+                            shaderFlags[0].SetFlagBits(flagBitsName << 16, index: flagIndex);
                             break;
                         case 3:
-                            shaderFlags[i].SetFlagBits(flagBitsName, index: flagIndex);
-                            shaderFlags[i].SetFlagBits(flagBitsName << 16, index: flagIndex);
+                            shaderFlags[0].SetFlagBits(flagBitsName, index: flagIndex);
+                            shaderFlags[0].SetFlagBits(flagBitsName << 16, index: flagIndex);
                             break;
                     }
                 }
