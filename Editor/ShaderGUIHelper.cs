@@ -170,6 +170,7 @@ namespace UnityEditor
             }
 
             bool isToggle = false;
+            bool isNoToggle = false;
 
             if (propertyName != null)
             {
@@ -190,6 +191,10 @@ namespace UnityEditor
             else if (shaderPassName2 != null)
             {
                 isToggle = mats[0].GetShaderPassEnabled(shaderPassName2);
+            }
+            else
+            {
+                isNoToggle = true;
             }
 
             if (propertyName != null)
@@ -240,11 +245,17 @@ namespace UnityEditor
             EditorStyles.label.fontStyle = fontStyle;
             if (rect.width > 0) //给FoldOut功能使用。
             {
-                isToggle = EditorGUI.Toggle(rect, isToggle, EditorStyles.toggle);
+                if (!isNoToggle)
+                {
+                    isToggle = EditorGUI.Toggle(rect, isToggle, EditorStyles.toggle);
+                }
             }
             else
             {
-                isToggle = EditorGUILayout.Toggle(label, isToggle);
+                if (!isNoToggle)
+                {
+                    isToggle = EditorGUILayout.Toggle(label, isToggle);
+                }
             }
 
             EditorStyles.label.fontStyle = origFontStyle;
@@ -537,12 +548,6 @@ namespace UnityEditor
                 newRec.x -= indent;
                 newRec.width += indent;
             }
-
-            // // EditorGUI.DrawRect(leftRect,Color.red);
-            // float biasWidth = EditorGUI.indentLevel * 15f - 2f;
-            // leftRect.x -= biasWidth;
-            // leftRect.width += biasWidth;
-            // EditorGUI.DrawRect(leftRect,Color.green);
             return newRec;
         }
 
