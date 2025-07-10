@@ -553,7 +553,7 @@ namespace UnityEditor
 
         public void DrawTextureFoldOut(ref AnimBool foldOutAnimBool, string label, string texturePropertyName,
             string colorPropertyName = null, bool drawScaleOffset = true, bool drawWrapMode = false,
-            int flagBitsName = 0, int flagIndex = 2, Action<Texture> drawBlock = null)
+            int wrapModeFlagBitsName = 0, int flagIndex = 2, Action<Texture> drawBlock = null)
         {
             EditorGUILayout.BeginHorizontal();
             var rect = EditorGUILayout.GetControlRect();
@@ -579,7 +579,7 @@ namespace UnityEditor
             EditorGUILayout.BeginFadeGroup(faded);
             EditorGUI.BeginDisabledGroup(texture == null);
 
-            DrawAfterTexture(true, label, texturePropertyName, drawScaleOffset, drawWrapMode, flagBitsName, flagIndex,
+            DrawAfterTexture(true, label, texturePropertyName, drawScaleOffset, drawWrapMode, wrapModeFlagBitsName, flagIndex,
                 drawBlock);
 
             EditorGUI.EndDisabledGroup();
@@ -587,18 +587,18 @@ namespace UnityEditor
         }
 
         public void DrawTexture(string label, string texturePropertyName, string colorPropertyName = null,
-            bool drawScaleOffset = true, bool drawWrapMode = false, int flagBitsName = 0, int flagIndex = 2,
+            bool drawScaleOffset = true, bool drawWrapMode = false, int wrapModeFlagBitsName = 0, int flagIndex = 2,
             Action<Texture> drawBlock = null)
         {
             bool hasTexture = mats[0].GetTexture(texturePropertyName) != null;
             matEditor.TexturePropertySingleLine(new GUIContent(label), GetProperty(texturePropertyName),
                 GetProperty(colorPropertyName));
-            DrawAfterTexture(hasTexture, label, texturePropertyName, drawScaleOffset, drawWrapMode, flagBitsName,
+            DrawAfterTexture(hasTexture, label, texturePropertyName, drawScaleOffset, drawWrapMode, wrapModeFlagBitsName,
                 flagIndex, drawBlock);
         }
 
         public void DrawAfterTexture(bool hasTexture, string label, string texturePropertyName,
-            bool drawScaleOffset = true, bool drawWrapMode = false, int flagBitsName = 0, int flagIndex = 2,
+            bool drawScaleOffset = true, bool drawWrapMode = false, int wrapModeFlagBitsName = 0, int flagIndex = 2,
             Action<Texture> drawBlock = null)
         {
             EditorGUI.indentLevel++;
@@ -608,8 +608,8 @@ namespace UnityEditor
                 //这个多选材质就不出现了，不好处理
                 if (mats.Count == 1)
                 {
-                    int tmpWrapMode = shaderFlags[0].CheckFlagBits(flagBitsName, index: flagIndex) ? 1 : 0;
-                    tmpWrapMode = shaderFlags[0].CheckFlagBits(flagBitsName << 16, index: flagIndex)
+                    int tmpWrapMode = shaderFlags[0].CheckFlagBits(wrapModeFlagBitsName, index: flagIndex) ? 1 : 0;
+                    tmpWrapMode = shaderFlags[0].CheckFlagBits(wrapModeFlagBitsName << 16, index: flagIndex)
                         ? tmpWrapMode + 2
                         : tmpWrapMode;
                     tmpWrapMode = EditorGUILayout.Popup(new GUIContent(label + "循环模式"), tmpWrapMode,
@@ -617,20 +617,20 @@ namespace UnityEditor
                     switch (tmpWrapMode)
                     {
                         case 0:
-                            shaderFlags[0].ClearFlagBits(flagBitsName, index: flagIndex);
-                            shaderFlags[0].ClearFlagBits(flagBitsName << 16, index: flagIndex);
+                            shaderFlags[0].ClearFlagBits(wrapModeFlagBitsName, index: flagIndex);
+                            shaderFlags[0].ClearFlagBits(wrapModeFlagBitsName << 16, index: flagIndex);
                             break;
                         case 1:
-                            shaderFlags[0].SetFlagBits(flagBitsName, index: flagIndex);
-                            shaderFlags[0].ClearFlagBits(flagBitsName << 16, index: flagIndex);
+                            shaderFlags[0].SetFlagBits(wrapModeFlagBitsName, index: flagIndex);
+                            shaderFlags[0].ClearFlagBits(wrapModeFlagBitsName << 16, index: flagIndex);
                             break;
                         case 2:
-                            shaderFlags[0].ClearFlagBits(flagBitsName, index: flagIndex);
-                            shaderFlags[0].SetFlagBits(flagBitsName << 16, index: flagIndex);
+                            shaderFlags[0].ClearFlagBits(wrapModeFlagBitsName, index: flagIndex);
+                            shaderFlags[0].SetFlagBits(wrapModeFlagBitsName << 16, index: flagIndex);
                             break;
                         case 3:
-                            shaderFlags[0].SetFlagBits(flagBitsName, index: flagIndex);
-                            shaderFlags[0].SetFlagBits(flagBitsName << 16, index: flagIndex);
+                            shaderFlags[0].SetFlagBits(wrapModeFlagBitsName, index: flagIndex);
+                            shaderFlags[0].SetFlagBits(wrapModeFlagBitsName << 16, index: flagIndex);
                             break;
                     }
                 }
