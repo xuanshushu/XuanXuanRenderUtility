@@ -680,7 +680,7 @@ namespace UnityEditor
                 matEditor.ColorProperty(colorRect,GetProperty(colorPropertyName), "");
             }
                 
-            DrawAfterTexture(hasTexture, label, texturePropertyName, drawScaleOffset, drawWrapMode, wrapModeFlagBitsName,
+            DrawAfterTexture(hasTexture, label, texturePropertyName, false, drawWrapMode, wrapModeFlagBitsName,
                 flagIndex, drawBlock);
         }
 
@@ -740,7 +740,7 @@ namespace UnityEditor
             }
         }
         public void DrawAfterTexture(bool hasTexture, string label, string texturePropertyName,
-            bool drawScaleOffset = true, bool drawWrapMode = false, int wrapModeFlagBitsName = 0, int flagIndex = 2,
+            bool drawScaleOffset = false, bool drawWrapMode = false, int wrapModeFlagBitsName = 0, int flagIndex = 2,
             Action<MaterialProperty> drawBlock = null)
         {
             EditorGUI.indentLevel++;
@@ -801,6 +801,8 @@ namespace UnityEditor
                 {
                     mats[i].SetFloat(propID,mode);   
                 }
+
+                property.floatValue = mode;
                 drawOnValueChangedBlock?.Invoke(property);
             }
 
