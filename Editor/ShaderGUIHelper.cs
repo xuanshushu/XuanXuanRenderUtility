@@ -227,13 +227,7 @@ namespace UnityEditor
                 //         drawBlock(toggle);
                 //     }
                 // }, //这里面的内容应该是在FoldOut里面触发。
-                drawEndChangeCheck: isEndChangeToggle =>
-                {
-                    if (drawEndChangeCheck != null)
-                    {
-                        drawEndChangeCheck(isEndChangeToggle);
-                    }
-                });
+                drawEndChangeCheck: drawEndChangeCheck);
 
             // EditorGUI.DrawRect(foldoutRect,Color.red);
             foldOutAnimBool.target = EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
