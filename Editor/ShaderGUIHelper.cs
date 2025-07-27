@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEditor.AnimatedValues;
 // using UnityEditor.Rendering.Universal.ShaderGUI;
 using UnityEngine;
+using Random = UnityEngine.Random;
+using System.Reflection;
 
 namespace UnityEditor
 {
@@ -19,6 +21,15 @@ namespace UnityEditor
     */
     public class ShaderGUIHelper
     {
+        public ShaderGUIHelper()
+        {
+            Undo.undoRedoPerformed += OnUndoRedoPerformed;
+        }
+        private void OnUndoRedoPerformed()//定义一个Undo回调
+        {
+            Debug.Log("ShaderGUIHelper UnDoPerform");
+            DrawGradientUndoPerformed();
+        }
         public class ShaderPropertyPack
         {
             public MaterialProperty property;
@@ -462,7 +473,14 @@ namespace UnityEditor
                 {
                     Vector4 vec4 = mats[i].GetVector(shaderID);
                     vec4 = SetVec2InVec4(vec4, isFirstLine, vec2);
-                    mats[i].SetVector(shaderID, vec4);
+                    if (mats.Count == 1)
+                    {
+                        GetProperty(propertyName).vectorValue = vec4;//为了K动画，多选不能K动画。   
+                    }
+                    else
+                    {
+                        mats[i].SetVector(shaderID, vec4);
+                    }
                 }
             }
 
@@ -577,8 +595,16 @@ namespace UnityEditor
                 {
                     Vector4 val = mats[i].GetVector(id);
                     val = SetCompInVec4(val, channel, f);
-                    mats[i].SetVector(id, val);
+                    if (mats.Count == 1)
+                    {
+                        GetProperty(propertyName).vectorValue = val;//为了K动画，多选不能K动画。
+                    }
+                    else
+                    {
+                        mats[i].SetVector(id, val);
+                    }
                 }
+
                 drawEndChangeCheckBlock?.Invoke(f, hasMixedValue);
             }
 
@@ -733,6 +759,21 @@ namespace UnityEditor
                 }
             }
         }
+
+        public void DrawWrapMode(string texturelabel,int wrapModeFlagBitsName = 0, int flagIndex = 2)
+        {
+            EditorGUI.showMixedValue = WrapModeFlagHasMixedValue(wrapModeFlagBitsName, flagIndex);
+                
+            int tmpWrapMode = GetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex,shaderFlags[0]);
+            EditorGUI.BeginChangeCheck();
+            tmpWrapMode = EditorGUILayout.Popup(new GUIContent(texturelabel + "循环模式"), tmpWrapMode,
+                Enum.GetNames(typeof(SamplerWarpMode)));
+            if (EditorGUI.EndChangeCheck())
+            {
+                SetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex,tmpWrapMode);
+            }
+            EditorGUI.showMixedValue = false;
+        }
         public void DrawAfterTexture(bool hasTexture, string label, string texturePropertyName,
             bool drawScaleOffset = false, bool drawWrapMode = false, int wrapModeFlagBitsName = 0, int flagIndex = 2,
             Action<MaterialProperty> drawBlock = null)
@@ -741,17 +782,18 @@ namespace UnityEditor
             EditorGUI.BeginDisabledGroup(!hasTexture);
             if (drawWrapMode)
             {
-                EditorGUI.showMixedValue = WrapModeFlagHasMixedValue(wrapModeFlagBitsName, flagIndex);
-                
-                int tmpWrapMode = GetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex,shaderFlags[0]);
-                EditorGUI.BeginChangeCheck();
-                tmpWrapMode = EditorGUILayout.Popup(new GUIContent(label + "循环模式"), tmpWrapMode,
-                    Enum.GetNames(typeof(SamplerWarpMode)));
-                if (EditorGUI.EndChangeCheck())
-                {
-                    SetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex,tmpWrapMode);
-                }
-                EditorGUI.showMixedValue = false;
+                DrawWrapMode(label, wrapModeFlagBitsName,flagIndex);
+                // EditorGUI.showMixedValue = WrapModeFlagHasMixedValue(wrapModeFlagBitsName, flagIndex);
+                //
+                // int tmpWrapMode = GetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex,shaderFlags[0]);
+                // EditorGUI.BeginChangeCheck();
+                // tmpWrapMode = EditorGUILayout.Popup(new GUIContent(label + "循环模式"), tmpWrapMode,
+                //     Enum.GetNames(typeof(SamplerWarpMode)));
+                // if (EditorGUI.EndChangeCheck())
+                // {
+                //     SetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex,tmpWrapMode);
+                // }
+                // EditorGUI.showMixedValue = false;
             }
 
             if (drawScaleOffset)
@@ -862,7 +904,6 @@ namespace UnityEditor
                 queueBiasProp.floatValue = QueueBias;
             }
             EditorGUI.showMixedValue = false;
-            
         }
 
         void GuiLine(int i_height = 1)
@@ -893,6 +934,265 @@ namespace UnityEditor
             return leftValue;
         }
 
+
+        private GradientAlphaKey[] defaultGradientAlphaKey = new GradientAlphaKey[]
+            { new GradientAlphaKey(1, 0), new GradientAlphaKey(1, 1) };
+
+
+        float RGBLuminance(Color color)
+        {
+            return 0.2126f* color.r + 0.7152f * color.g + 0.0722f * color.b;
+        }
+
+        private bool isUpateGradientPickerCache = false;
+
+        public void DrawGradientUndoPerformed()
+        {
+            isUpateGradientPickerCache = true;
+        }
+        //如果是黑白Gradient，则取Gradient的颜色的黑白值（这样在面板上可视化比较好）
+        //如果既有颜色，也有Alpha。则在CountProperty上采取前16位和后16位编码。
+        //原则：gradient对象只是一个操作中介。取值应该直接在MatProperty上去，Set值也应该在验证合法后才能Set，不合法应该提出警告。
+        public void DrawGradient(ref Gradient gradient,string label,int maxCount,MaterialProperty countProperty,MaterialProperty[] colorProperties = null,MaterialProperty[] alphaProperties = null)
+        {
+            
+            Rect rect = EditorGUILayout.GetControlRect();
+
+            var labelRect = new Rect(rect.x + 2f, rect.y, rect.width - 2f, rect.height);
+            EditorGUI.LabelField(labelRect,label);
+            var gradientRect = GetRectAfterLabelWidth(rect);
+            
+            bool hasMixedValue = false;
+            hasMixedValue |= countProperty.hasMixedValue;
+
+            bool isBlackAndWhiteGradient = colorProperties == null && alphaProperties != null;
+            bool isNoAlphaColorGradient =  colorProperties != null && alphaProperties == null;
+            
+            int colorKeysCount;
+            int alphaKeysCount;
+
+            int countPropertyIntValue = countProperty.intValue;
+            if (colorProperties != null && alphaProperties != null)
+            {
+                colorKeysCount = countPropertyIntValue & 0xFFFF;
+                alphaKeysCount = countPropertyIntValue >> 16;
+            }
+            else
+            {
+                colorKeysCount = countPropertyIntValue;
+                alphaKeysCount = 2;
+            }
+            
+            
+            if (colorProperties != null)
+            {
+                for(int i = 0; i < colorKeysCount; i++)
+                {
+                    hasMixedValue |= colorProperties[i].hasMixedValue;
+                }
+            }
+            if (alphaProperties != null)
+            {
+                for (int i = 0; i < Mathf.CeilToInt(alphaKeysCount/2f); i++)
+                {
+                    hasMixedValue |= alphaProperties[i].hasMixedValue;
+                }
+            }
+
+            
+            if (isUpateGradientPickerCache || gradient == null)
+            {
+                if (gradient == null)
+                {
+                    gradient = new Gradient();
+                    gradient.colorSpace = ColorSpace.Gamma;
+                }
+                
+                if (colorProperties != null || isBlackAndWhiteGradient)
+                {
+                    GradientColorKey[] colorKeys;
+                    if (gradient.colorKeys.Length != colorKeysCount)
+                    {
+                        colorKeys = new GradientColorKey[colorKeysCount];
+                    }
+                    else
+                    {
+                        colorKeys = gradient.colorKeys;
+                    }
+                    for (int i = 0; i < colorKeysCount; i++)
+                    {
+                        if (isBlackAndWhiteGradient)
+                        {
+                            Vector4 vec = alphaProperties[i / 2].vectorValue;
+                            Color c = Color.white;
+                            if (i % 2 == 0)
+                            {
+                                c.r = vec.x;
+                                c.g = vec.x;
+                                c.b = vec.x;
+                            }
+                            else
+                            {
+                                c.r = vec.z;
+                                c.g = vec.z;
+                                c.b = vec.z;
+                            }
+                            colorKeys[i].color = c;
+                            colorKeys[i].time = i % 2 == 0 ? vec.y : vec.w;
+                        }
+                        else
+                        {
+                            Color c = colorProperties[i].colorValue; 
+                            colorKeys[i].color = c;
+                            colorKeys[i].time = c.a;
+                        }
+                    }
+                    gradient.colorKeys = colorKeys;
+                }
+          
+                if (isBlackAndWhiteGradient || isNoAlphaColorGradient || alphaProperties == null)
+                {
+                    gradient.alphaKeys = defaultGradientAlphaKey;
+                }
+                else
+                {
+
+                    GradientAlphaKey[] alphaKeys;
+                    if (gradient.alphaKeys.Length != alphaKeysCount)
+                    {
+                        alphaKeys = new GradientAlphaKey[alphaKeysCount];
+                    }
+                    else
+                    {
+                        alphaKeys = gradient.alphaKeys;
+                    }
+
+                    for (int i = 0; i < alphaKeysCount ; i++)
+                    {
+                        Vector4 vec = alphaProperties[i / 2].vectorValue;
+                        if (i % 2 == 0)
+                        {
+                            alphaKeys[i].alpha = vec.x;
+                            alphaKeys[i].time = vec.y;
+                        }
+                        else
+                        {
+                            alphaKeys[i].alpha = vec.z;
+                            alphaKeys[i].time = vec.w;
+                        }
+                    }
+                    gradient.alphaKeys = alphaKeys;
+                    
+                }
+                GradientReflectionHelper.RefreshGradientData();
+                if(isUpateGradientPickerCache) isUpateGradientPickerCache = false;
+                
+                // Debug.Log("----------------SetCurrentGradient------------------");
+            }
+
+            
+           
+            
+
+            EditorGUI.showMixedValue = hasMixedValue;
+            
+            EditorGUI.BeginChangeCheck();
+            gradient = EditorGUI.GradientField(gradientRect, gradient);
+            if (EditorGUI.EndChangeCheck())
+            {
+                isUpateGradientPickerCache = true;
+                int countPropertyValue = countPropertyIntValue;
+
+                // Debug.Log("-----");
+                ///*
+                // for (int j = 0; j < gradient.colorKeys.Length; j++)
+                // {
+                //     Debug.Log(j+" | "+gradient.colorKeys[j].color +" | " +gradient.colorKeys[j].time);
+                // }
+                
+                if (colorProperties != null || isBlackAndWhiteGradient)
+                {
+                    int finalColorKeysCount = gradient.colorKeys.Length;
+                    if (finalColorKeysCount <= maxCount)
+                    {
+                        if (isBlackAndWhiteGradient)
+                        {
+                            int floatPropertyCount = Mathf.CeilToInt((float)finalColorKeysCount / (2f));
+                            for (int i = 0; i < floatPropertyCount; i++)
+                            {
+                                Vector4 vec = Vector4.zero;
+                                vec.x = gradient.colorKeys[i*2].color.r;
+                                vec.y = gradient.colorKeys[i*2].time;
+                                if (i * 2 + 1 < gradient.colorKeys.Length)
+                                {
+                                    vec.z = gradient.colorKeys[i * 2 + 1].color.r;
+                                    vec.w = gradient.colorKeys[i * 2 + 1].time;
+                                }
+
+                                alphaProperties[i].vectorValue = vec;
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < finalColorKeysCount; i++)
+                            {
+                                
+                                Color c = gradient.colorKeys[i].color;
+                                c.a = gradient.colorKeys[i].time;
+                                colorProperties[i].colorValue = c;
+                            }
+                        }
+
+                        countPropertyValue &= (0xFFFF <<16);
+                        countPropertyValue |= finalColorKeysCount;
+                    }
+                }
+                
+                // Debug.Log("--------------------");
+                // for (int j = 0; j < gradient.alphaKeys.Length; j++)
+                // {
+                //     Debug.Log(j+" | "+gradient.alphaKeys[j].alpha +" | " +gradient.alphaKeys[j].time);
+                // }
+
+
+                if (!(isBlackAndWhiteGradient || isNoAlphaColorGradient || alphaProperties == null))
+                {
+                    int finalAlphaKeysCount = gradient.alphaKeys.Length;
+                    if (finalAlphaKeysCount <= maxCount)
+                    {
+                        int floatPropertyCount = Mathf.CeilToInt((float)finalAlphaKeysCount / (2f));
+                        for (int i = 0; i < floatPropertyCount; i++)
+                        {
+                            Vector4 vec = Vector4.zero;
+                            vec.x = gradient.alphaKeys[i*2].alpha;
+                            vec.y = gradient.alphaKeys[i*2].time;
+                            if (i * 2 + 1 < gradient.alphaKeys.Length)
+                            {
+                                vec.z = gradient.alphaKeys[i * 2 + 1].alpha;
+                                vec.w = gradient.alphaKeys[i * 2 + 1].time;
+                            }
+                            alphaProperties[i].vectorValue = vec;
+                        }
+
+                        countPropertyValue &= (0xFFFF);
+                        int alphaCount = finalAlphaKeysCount << 16;
+                        countPropertyValue |= alphaCount;
+                    }
+                }
+
+                countProperty.intValue = countPropertyValue;
+                // Debug.Log(Convert.ToString(countProperty.intValue,2));
+                int getInt = mats[0].GetInteger("_RampColorCount");
+                // Debug.Log(Convert.ToString(getInt,2));
+                // Debug.Log(getInt & 0xFFFF);
+                // Debug.Log(getInt >> 16);
+
+        //*/
+            }
+        }
+
+        
+       
 
     }
 }
