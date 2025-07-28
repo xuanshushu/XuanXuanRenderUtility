@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor.AnimatedValues;
 // using UnityEditor.Rendering.Universal.ShaderGUI;
 using UnityEngine;
@@ -27,7 +28,6 @@ namespace UnityEditor
         }
         private void OnUndoRedoPerformed()//定义一个Undo回调
         {
-            Debug.Log("ShaderGUIHelper UnDoPerform");
             DrawGradientUndoPerformed();
         }
         public class ShaderPropertyPack
@@ -950,12 +950,22 @@ namespace UnityEditor
         {
             isUpateGradientPickerCache = true;
         }
+        Dictionary<Gradient,bool> gradientsUpdateDic = new Dictionary<Gradient,bool>();
         //如果是黑白Gradient，则取Gradient的颜色的黑白值（这样在面板上可视化比较好）
         //如果既有颜色，也有Alpha。则在CountProperty上采取前16位和后16位编码。
         //原则：gradient对象只是一个操作中介。取值应该直接在MatProperty上去，Set值也应该在验证合法后才能Set，不合法应该提出警告。
-        public void DrawGradient(ref Gradient gradient,string label,int maxCount,MaterialProperty countProperty,MaterialProperty[] colorProperties = null,MaterialProperty[] alphaProperties = null)
+        public void DrawGradient(ref Gradient gradient,string label,int maxCount,string countPropertyName,MaterialProperty[] colorProperties = null,MaterialProperty[] alphaProperties = null)
         {
-            
+            if (isUpateGradientPickerCache)
+            {
+                foreach (var keys in gradientsUpdateDic.Keys.ToList())
+                {
+                    gradientsUpdateDic[keys] = true;
+                }
+
+                isUpateGradientPickerCache = false;
+            }
+            MaterialProperty countProperty = GetProperty(countPropertyName);
             Rect rect = EditorGUILayout.GetControlRect();
 
             var labelRect = new Rect(rect.x + 2f, rect.y, rect.width - 2f, rect.height);
@@ -1000,13 +1010,16 @@ namespace UnityEditor
             }
 
             
-            if (isUpateGradientPickerCache || gradient == null)
+            if (gradient == null||gradientsUpdateDic[gradient])
             {
                 if (gradient == null)
                 {
                     gradient = new Gradient();
                     gradient.colorSpace = ColorSpace.Gamma;
+                    gradientsUpdateDic.Add(gradient,false);
                 }
+
+                gradientsUpdateDic[gradient] = false;
                 
                 if (colorProperties != null || isBlackAndWhiteGradient)
                 {
@@ -1037,6 +1050,8 @@ namespace UnityEditor
                                 c.g = vec.z;
                                 c.b = vec.z;
                             }
+                            Debug.Log(i);
+                            Debug.Log(c);
                             colorKeys[i].color = c;
                             colorKeys[i].time = i % 2 == 0 ? vec.y : vec.w;
                         }
@@ -1085,8 +1100,6 @@ namespace UnityEditor
                     
                 }
                 GradientReflectionHelper.RefreshGradientData();
-                if(isUpateGradientPickerCache) isUpateGradientPickerCache = false;
-                
                 // Debug.Log("----------------SetCurrentGradient------------------");
             }
 
@@ -1100,16 +1113,9 @@ namespace UnityEditor
             gradient = EditorGUI.GradientField(gradientRect, gradient);
             if (EditorGUI.EndChangeCheck())
             {
-                isUpateGradientPickerCache = true;
+                gradientsUpdateDic[gradient] = true;
                 int countPropertyValue = countPropertyIntValue;
 
-                // Debug.Log("-----");
-                ///*
-                // for (int j = 0; j < gradient.colorKeys.Length; j++)
-                // {
-                //     Debug.Log(j+" | "+gradient.colorKeys[j].color +" | " +gradient.colorKeys[j].time);
-                // }
-                
                 if (colorProperties != null || isBlackAndWhiteGradient)
                 {
                     int finalColorKeysCount = gradient.colorKeys.Length;
@@ -1148,13 +1154,6 @@ namespace UnityEditor
                     }
                 }
                 
-                // Debug.Log("--------------------");
-                // for (int j = 0; j < gradient.alphaKeys.Length; j++)
-                // {
-                //     Debug.Log(j+" | "+gradient.alphaKeys[j].alpha +" | " +gradient.alphaKeys[j].time);
-                // }
-
-
                 if (!(isBlackAndWhiteGradient || isNoAlphaColorGradient || alphaProperties == null))
                 {
                     int finalAlphaKeysCount = gradient.alphaKeys.Length;
@@ -1181,13 +1180,7 @@ namespace UnityEditor
                 }
 
                 countProperty.intValue = countPropertyValue;
-                // Debug.Log(Convert.ToString(countProperty.intValue,2));
-                int getInt = mats[0].GetInteger("_RampColorCount");
-                // Debug.Log(Convert.ToString(getInt,2));
-                // Debug.Log(getInt & 0xFFFF);
-                // Debug.Log(getInt >> 16);
 
-        //*/
             }
         }
 
