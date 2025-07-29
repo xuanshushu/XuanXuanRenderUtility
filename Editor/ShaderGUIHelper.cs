@@ -954,7 +954,7 @@ namespace UnityEditor
         //如果是黑白Gradient，则取Gradient的颜色的黑白值（这样在面板上可视化比较好）
         //如果既有颜色，也有Alpha。则在CountProperty上采取前16位和后16位编码。
         //原则：gradient对象只是一个操作中介。取值应该直接在MatProperty上去，Set值也应该在验证合法后才能Set，不合法应该提出警告。
-        public void DrawGradient(ref Gradient gradient,string label,int maxCount,string countPropertyName,MaterialProperty[] colorProperties = null,MaterialProperty[] alphaProperties = null)
+        public void DrawGradient(ref Gradient gradient,bool hdr,ColorSpace colorSpace,string label,int maxCount,string countPropertyName,MaterialProperty[] colorProperties = null,MaterialProperty[] alphaProperties = null)
         {
             if (isUpateGradientPickerCache)
             {
@@ -968,9 +968,9 @@ namespace UnityEditor
             MaterialProperty countProperty = GetProperty(countPropertyName);
             Rect rect = EditorGUILayout.GetControlRect();
 
-            var labelRect = new Rect(rect.x + 2f, rect.y, rect.width - 2f, rect.height);
-            EditorGUI.LabelField(labelRect,label);
-            var gradientRect = GetRectAfterLabelWidth(rect);
+            // var labelRect = new Rect(rect.x + 2f, rect.y, rect.width - 2f, rect.height);
+            // EditorGUI.LabelField(labelRect,label);
+            var gradientRect = rect;
             
             bool hasMixedValue = false;
             hasMixedValue |= countProperty.hasMixedValue;
@@ -1110,7 +1110,7 @@ namespace UnityEditor
             EditorGUI.showMixedValue = hasMixedValue;
             
             EditorGUI.BeginChangeCheck();
-            gradient = EditorGUI.GradientField(gradientRect, gradient);
+            gradient = EditorGUI.GradientField(gradientRect, new GUIContent(label),gradient,hdr,colorSpace);
             if (EditorGUI.EndChangeCheck())
             {
                 gradientsUpdateDic[gradient] = true;
