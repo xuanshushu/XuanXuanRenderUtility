@@ -225,7 +225,7 @@ namespace UnityEditor
 
             var foldoutRect = new Rect(rect.x, rect.y, rect.width, rect.height);
             foldoutRect.width = toggleRect.x - foldoutRect.x;
-            var labelRect = new Rect(rect.x + 2f, rect.y, rect.width - 2f, rect.height);
+            var labelRect = new Rect(rect.x , rect.y, rect.width , rect.height);
 
             // bool isToggle = false;
             // 必须先画Toggle，不然按钮会被FoldOut和Label覆盖。
@@ -660,15 +660,11 @@ namespace UnityEditor
         {
             EditorGUILayout.BeginHorizontal();
             var rect = EditorGUILayout.GetControlRect(false,68f);//MaterialEditor.GetTextureFieldHeight() => 64f;
-            var foldoutRect = new Rect(rect.x, rect.y, rect.width ,
-                rect.height);
-            var textureThumbnialRect = new Rect(rect.x + 2f, rect.y, rect.width-2f, rect.height);
-            Texture texture =
-                matEditor.TextureProperty(textureThumbnialRect,GetProperty(texturePropertyName), label, drawScaleOffset);
-
-            foldOutAnimBool.target = EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
-
+            // var foldoutRect = new Rect(rect.x, rect.y, rect.width , rect.height);
+            var textureThumbnialRect = new Rect(rect.x , rect.y, rect.width, rect.height);
+            Texture texture = matEditor.TextureProperty(textureThumbnialRect,GetProperty(texturePropertyName), label, drawScaleOffset);
             EditorGUILayout.EndHorizontal();
+
             if (colorPropertyName != null)
             {
                 // Rect colorPropRect = GetRectAfterLabelWidth(rect, true);
@@ -676,6 +672,11 @@ namespace UnityEditor
                 Rect colorPropRect = EditorGUILayout.GetControlRect(false);
                 Color color = matEditor.ColorProperty(colorPropRect, GetProperty(colorPropertyName), "");
             }
+            var foldoutRect = EditorGUILayout.GetControlRect(false);//MaterialEditor.GetTextureFieldHeight() => 64f;
+            Rect labelRect = foldoutRect;
+            labelRect.width = EditorGUIUtility.labelWidth;
+            EditorGUI.LabelField(labelRect, label+"相关功能", EditorStyles.boldLabel);
+            foldOutAnimBool.target = EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, "", true);
             float faded = foldOutAnimBool.faded;
             if (faded == 0) faded = 0.00001f;
             EditorGUILayout.BeginFadeGroup(faded);
@@ -1050,8 +1051,8 @@ namespace UnityEditor
                                 c.g = vec.z;
                                 c.b = vec.z;
                             }
-                            Debug.Log(i);
-                            Debug.Log(c);
+                            // Debug.Log(i);
+                            // Debug.Log(c);
                             colorKeys[i].color = c;
                             colorKeys[i].time = i % 2 == 0 ? vec.y : vec.w;
                         }
