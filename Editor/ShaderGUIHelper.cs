@@ -1016,7 +1016,7 @@ namespace UnityEditor
                 if (gradient == null)
                 {
                     gradient = new Gradient();
-                    gradient.colorSpace = ColorSpace.Gamma;
+                    // gradient.colorSpace = ColorSpace.Gamma;
                     gradientsUpdateDic.Add(gradient,false);
                 }
 
