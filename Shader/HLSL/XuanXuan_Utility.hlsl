@@ -240,6 +240,14 @@ void Unity_Blend_HardLight_half(half Base, half Blend, half Opacity, out half Ou
     Out = lerp(Base, Out, Opacity);
 }
 
+void Blend_HardLight_half(half Base, half Blend, out half Out)
+{
+    half result1 = 1.0 - 2.0 * (1.0 - Base) * (1.0 - Blend);
+    half result2 = 2.0 * Base * Blend;
+    half zeroOrOne = step(Blend, 0.5);
+    Out = result2 * zeroOrOne + (1 - zeroOrOne) * result1;
+}
+
 float2 randomGradient(float2 p) {
     p = p + 0.02;
     float x = dot(p, float2(123.4, 234.5));
