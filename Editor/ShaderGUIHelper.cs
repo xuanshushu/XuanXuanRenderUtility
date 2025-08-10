@@ -28,54 +28,96 @@ namespace UnityEditor
         }
         private void OnUndoRedoPerformed()//定义一个Undo回调
         {
+            if(!shader) return;//会有一些空的Helper对象
             DrawGradientUndoPerformed();
+            _resetTool?.NeedUpdate();
         }
+        
         public class ShaderPropertyPack
         {
             public MaterialProperty property;
             public string name;
+            public int index;
         }
 
         private List<Material> mats;
         private MaterialEditor matEditor;
-        public List<ShaderPropertyPack> ShaderPropertyPacks = new List<ShaderPropertyPack>();
+        public Shader shader;
+        // public List<ShaderPropertyPack> ShaderPropertyPacks = new List<ShaderPropertyPack>();
+        public Dictionary<string, ShaderPropertyPack> ShaderPropertyPacksDic =
+            new Dictionary<string, ShaderPropertyPack>();
         public ShaderFlagsBase[] shaderFlags = null;
-
 
         public void Init(MaterialEditor materialEditor, MaterialProperty[] properties,
             ShaderFlagsBase[] shaderFlags_in = null, List<Material> mats_in = null)
         {
             shaderFlags = shaderFlags_in;
-            ShaderPropertyPacks.Clear();
-
-            mats = mats_in;
-            Shader shader = mats[0].shader;
+            // ShaderPropertyPacks.Clear();
             matEditor = materialEditor;
-            for (int i = 0; i < ShaderUtil.GetPropertyCount(shader); i++)
+            mats = mats_in;
+            if (mats[0].shader != shader)
             {
-                ShaderPropertyPack pack = new ShaderPropertyPack();
-                pack.name = ShaderUtil.GetPropertyName(shader, i);
-                for (int index = 0; index < properties.Length; ++index)
+                shader = mats[0].shader;
+                ShaderPropertyPacksDic.Clear();
+                for (int i = 0; i < ShaderUtil.GetPropertyCount(shader); i++)
                 {
-                    if (properties[index] != null && properties[index].name == pack.name)
+                    ShaderPropertyPack pack = new ShaderPropertyPack();
+                    pack.name = ShaderUtil.GetPropertyName(shader, i);
+                    for (int index = 0; index < properties.Length; ++index)
                     {
-                        pack.property = properties[index];
-                        break;
-                    }
-                    else
-                    {
-                        if (index == properties.Length - 1)
+                        if (properties[index] != null && properties[index].name == pack.name)
                         {
-                            Debug.LogError(pack.name + "找不到Properties");
+                            pack.property = properties[index];
+                            pack.index = index;
+                            break;
+                        }
+                        else
+                        {
+                            if (index == properties.Length - 1)
+                            {
+                                Debug.LogError(pack.name + "找不到Properties");
+                            }
                         }
                     }
+
+                    // ShaderPropertyPacks.Add(pack);
+                    ShaderPropertyPacksDic.Add(pack.name,pack);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < ShaderUtil.GetPropertyCount(shader); i++)
+                {
+                    string propertyName = ShaderUtil.GetPropertyName(shader, i);
+                    ShaderPropertyPacksDic[propertyName].property = properties[i];
                 }
 
-                ShaderPropertyPacks.Add(pack);
             }
+           
+
+            if (_resetTool == null)
+            {
+                _resetTool = new ShaderGUIResetTool(this);
+            }
+            else
+            {
+                _resetTool.EndInit();
+                _resetTool.Update();
+            }
+            
         }
-        
-        
+  
+        private ShaderGUIToolBar _toolBar;
+        private ShaderGUIResetTool _resetTool;
+
+        public void DrawToolBar()
+        {
+            if (_toolBar == null) _toolBar = new ShaderGUIToolBar(this);
+            _toolBar.DrawToolbar();
+        }
+
+  
+
         public void DrawTextureFoldOut(int foldOutFlagBit,int foldOutFlagIndex,int animBoolIndex,string label, string texturePropertyName,
             string colorPropertyName = null, bool drawScaleOffset = true, bool drawWrapMode = false,
             int flagBitsName = 0, int flagIndex = 2, Action<MaterialProperty> drawBlock = null)
@@ -117,6 +159,38 @@ namespace UnityEditor
             }
         }
 
+        public void ColorProperty(string label, string propertyName,bool showAlpha = true)
+        {
+            EditorGUILayout.BeginHorizontal();
+            ShaderPropertyPack shaderPropertyPack = ShaderPropertyPacksDic[propertyName];
+            MaterialProperty prop = shaderPropertyPack.property;
+            Color color = shaderPropertyPack.property.colorValue;
+            Rect position = EditorGUILayout.GetControlRect();
+            MaterialEditor.BeginProperty(position, prop);
+           
+            EditorGUI.BeginChangeCheck();
+            bool hdr = (prop.flags & MaterialProperty.PropFlags.HDR) != 0;
+            color = EditorGUI.ColorField(position, new GUIContent(label), prop.colorValue, true, showAlpha, hdr);
+            Action onEndChaneChange = () =>
+            {
+                prop.colorValue = color;
+                _resetTool.CheckHasModifyOnValueChange((label,propertyName));
+            };
+            if (EditorGUI.EndChangeCheck())
+            {
+                onEndChaneChange();
+            }
+            _resetTool.DrawResetModifyButton(label,shaderPropertyPack,resetAction: () =>
+            {
+                color = prop.colorValue;
+            },onValueChangedCallBack: onEndChaneChange);
+            MaterialEditor.EndProperty();
+            // matEditor.ColorProperty(GetProperty(propertyName), label);
+            
+            EditorGUILayout.EndHorizontal();
+            _resetTool.EndResetModifyButtonScope();
+        }
+
         public void DrawBigBlockFoldOut(int foldOutFlagBit,int foldOutFlagIndex,int animBoolIndex ,string label, Action drawBlock)
         {
             EditorGUILayout.Space();
@@ -147,17 +221,6 @@ namespace UnityEditor
             return animBoolArr[arrIndex];
         }
 
-        public void DrawBigBlock(String label, Action drawBlock)
-        {
-            EditorGUILayout.Space();
-            var origFontStyle = EditorStyles.label.fontStyle;
-            EditorStyles.label.fontStyle = FontStyle.Bold;
-            EditorGUILayout.LabelField(label);
-            EditorStyles.label.fontStyle = origFontStyle;
-            drawBlock();
-            GuiLine();
-        }
-
         public void DrawFoldOut(int foldOutFlagBit,int foldOutFlagIndex,int animBoolIndex, String label,FontStyle fontStyle = FontStyle.Normal, Action drawBlock = null)
         {
             bool foldOutState = shaderFlags[0].CheckFlagBits(foldOutFlagBit, index: foldOutFlagIndex);
@@ -175,6 +238,8 @@ namespace UnityEditor
             EditorStyles.label.fontStyle = fontStyle;
             EditorGUI.LabelField(labelRect, label);
             EditorStyles.label.fontStyle = origFontStyle;
+            
+            _resetTool.DrawResetModifyButton(label);
             EditorGUILayout.EndHorizontal();
             
             float faded = animBool.faded;
@@ -193,6 +258,7 @@ namespace UnityEditor
             {
                 shaderFlags[0].ClearFlagBits(foldOutFlagBit, index: foldOutFlagIndex);
             }
+            _resetTool.EndResetModifyButtonScope();
         }
 
         public void DrawBigBlockWithToggle(String label, string propertyName, int flagBitsName = 0, int flagIndex = 0,
@@ -212,6 +278,7 @@ namespace UnityEditor
             FontStyle fontStyle = FontStyle.Normal,
             Action<MaterialProperty> drawBlock = null, Action<MaterialProperty> drawEndChangeCheck = null)
         {
+            ShaderPropertyPack propertyPack = ShaderPropertyPacksDic[propertyName];
             MaterialProperty toggleProp = GetProperty(propertyName);
             
             if (fontStyle == FontStyle.Bold)
@@ -229,16 +296,7 @@ namespace UnityEditor
 
             // bool isToggle = false;
             // 必须先画Toggle，不然按钮会被FoldOut和Label覆盖。
-            DrawToggle("", propertyName, flagBitsName, flagIndex, shaderKeyword, shaderPassName, isIndentBlock: false,
-                fontStyle: FontStyle.Normal, rect: toggleRect, 
-                // drawBlock: toggle => 
-                // {
-                //     if (drawBlock != null)
-                //     {
-                //         drawBlock(toggle);
-                //     }
-                // }, //这里面的内容应该是在FoldOut里面触发。
-                drawEndChangeCheck: drawEndChangeCheck);
+            DrawToggle("", propertyName, flagBitsName, flagIndex, shaderKeyword, shaderPassName, isIndentBlock: false, fontStyle: FontStyle.Normal, rect: toggleRect, drawEndChangeCheck: drawEndChangeCheck);
 
             // EditorGUI.DrawRect(foldoutRect,Color.red);
             foldOutAnimBool.target = EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
@@ -260,6 +318,9 @@ namespace UnityEditor
             }
             EditorGUILayout.EndFadeGroup();
             if (isIndentBlock) EditorGUI.indentLevel--;
+            
+            _resetTool.EndResetModifyButtonScope();//开始是在DrawToggle里开始的
+            
         }
 
         public void DrawToggle(String label, string propertyName, int flagBitsName = 0, int flagIndex = 0,
@@ -276,6 +337,7 @@ namespace UnityEditor
             }
 
             MaterialProperty toggleProperty = GetProperty(propertyName);
+            ShaderPropertyPack propertyPack = ShaderPropertyPacksDic[propertyName];
             EditorGUI.showMixedValue = toggleProperty.hasMixedValue;
 
             EditorGUI.BeginChangeCheck();
@@ -288,13 +350,15 @@ namespace UnityEditor
             }
             else
             {
+                EditorGUILayout.BeginHorizontal();
                 isToggle = EditorGUILayout.Toggle(label, isToggle);
             }
 
             EditorStyles.label.fontStyle = origFontStyle;
-            if (EditorGUI.EndChangeCheck())
+            Action onEndChangeCheck = () =>
             {
                 toggleProperty.floatValue = isToggle ? 1.0f : 0.0f;
+                _resetTool.CheckHasModifyOnValueChange((label,propertyName));
                 if (!toggleProperty.hasMixedValue)
                 {
                     for (int i = 0; i < mats.Count; i++)
@@ -352,6 +416,20 @@ namespace UnityEditor
                     }
                 }
                 drawEndChangeCheck?.Invoke(toggleProperty);
+            };
+            if (EditorGUI.EndChangeCheck())
+            {
+                onEndChangeCheck();
+            }
+            
+            _resetTool.DrawResetModifyButton(label,propertyPack,resetAction: () =>
+            {
+                isToggle = propertyPack.property.floatValue > 0.5f ? true : false;
+            },onValueChangedCallBack:onEndChangeCheck);
+
+            if (rect.width <= 0)
+            {
+                EditorGUILayout.EndHorizontal();
             }
 
             if (isIndentBlock) EditorGUI.indentLevel++;
@@ -359,8 +437,11 @@ namespace UnityEditor
             if (isIndentBlock) EditorGUI.indentLevel--;
 
             EditorGUI.showMixedValue = false;
+            if (rect.width <= 0)
+            {
+                _resetTool.EndResetModifyButtonScope();//如果是DrawFoldOut，需要在DrawFoldOut里去结束。
+            }
         }
-
 
         public void DrawSlider(string label, string propertyName, float minValue, float maxValue,
             Action<float> drawBlock = null)
@@ -850,12 +931,16 @@ namespace UnityEditor
 
         public MaterialProperty GetProperty(string propertyName)
         {
-            foreach (ShaderPropertyPack pack in ShaderPropertyPacks)
+            // foreach (ShaderPropertyPack pack in ShaderPropertyPacks)
+            // {
+            //     if (pack.name == propertyName)
+            //     {
+            //         return pack.property;
+            //     }
+            // }
+            if (ShaderPropertyPacksDic.ContainsKey(propertyName))
             {
-                if (pack.name == propertyName)
-                {
-                    return pack.property;
-                }
+                return ShaderPropertyPacksDic[propertyName].property;
             }
 
             // Debug.LogError("材质球" + mat.name + "找不到属性" + propertyName, mat);
