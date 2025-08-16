@@ -6,8 +6,9 @@ using UnityEditor.AnimatedValues;
 using UnityEngine;
 using Random = UnityEngine.Random;
 using System.Reflection;
-
-namespace UnityEditor
+using UnityEngine.UIElements;
+using UnityEditor;
+namespace NBShaderEditor
 {
     /*
         多选材质面板的原则记录：
@@ -118,25 +119,6 @@ namespace UnityEditor
 
   
 
-        public void DrawTextureFoldOut(int foldOutFlagBit,int foldOutFlagIndex,int animBoolIndex,string label, string texturePropertyName,
-            string colorPropertyName = null, bool drawScaleOffset = true, bool drawWrapMode = false,
-            int flagBitsName = 0, int flagIndex = 2, Action<MaterialProperty> drawBlock = null)
-        {
-            bool foldOutState = shaderFlags[0].CheckFlagBits(foldOutFlagBit, index: foldOutFlagIndex);
-            AnimBool animBool = GetAnimBool(foldOutFlagBit, animBoolIndex, foldOutFlagIndex);
-            animBool.target = foldOutState;
-            DrawTextureFoldOut(ref animBool, label, texturePropertyName, colorPropertyName, drawScaleOffset,
-                drawWrapMode, flagBitsName, flagIndex, drawBlock);
-            foldOutState = animBool.target;
-            if (foldOutState)
-            {
-                shaderFlags[0].SetFlagBits(foldOutFlagBit, index: foldOutFlagIndex);
-            }
-            else
-            {
-                shaderFlags[0].ClearFlagBits(foldOutFlagBit, index: foldOutFlagIndex);
-            }
-        }
 
         public void DrawToggleFoldOut(int foldOutFlagBit,int foldOutFlagIndex, int animBoolIndex,string label, string propertyName,
             int flagBitsName = 0,
@@ -448,16 +430,28 @@ namespace UnityEditor
         {
             EditorGUI.showMixedValue = GetProperty(propertyName).hasMixedValue;
             float f = GetProperty(propertyName).floatValue;
+            EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginChangeCheck();
             f = EditorGUILayout.Slider(label, f, minValue, maxValue);
-            if (EditorGUI.EndChangeCheck())
+            Action endChangCallBack= () =>
             {
                 GetProperty(propertyName).floatValue = f;
-            }
-
-            drawBlock?.Invoke(f);
-
+                _resetTool.CheckHasModifyOnValueChange((label,propertyName));
+            };
             EditorGUI.showMixedValue = false;
+            if (EditorGUI.EndChangeCheck())
+            {
+                endChangCallBack.Invoke();
+            }
+            _resetTool.DrawResetModifyButton(label,ShaderPropertyPacksDic[propertyName],resetAction: () =>
+            {
+                f = GetProperty(propertyName).floatValue;
+            },onValueChangedCallBack:endChangCallBack);
+            drawBlock?.Invoke(f);
+            EditorGUILayout.EndHorizontal();
+            
+
+            _resetTool.EndResetModifyButtonScope();
         }
 
 
@@ -469,15 +463,29 @@ namespace UnityEditor
             float f = floatProperty.floatValue;
             if (isReciprocal) f = 1 / f;
             EditorGUI.BeginChangeCheck();
+            Action endChangeCallback = () =>
+            {
+                floatProperty.floatValue = f;
+                _resetTool.CheckHasModifyOnValueChange((label,propertyName));
+            };
+            EditorGUILayout.BeginHorizontal();
             f = EditorGUILayout.FloatField(label, f);
+  
             if (isReciprocal) f = 1 / f;
             if (EditorGUI.EndChangeCheck())
             {
-                floatProperty.floatValue = f;
+                endChangeCallback.Invoke();
             }
+            
+            _resetTool.DrawResetModifyButton(label,ShaderPropertyPacksDic[propertyName],resetAction: () =>
+            {
+                f = floatProperty.floatValue;
+            },onValueChangedCallBack:endChangeCallback);
+            EditorGUILayout.EndHorizontal();
 
             drawBlock?.Invoke(floatProperty);
             EditorGUI.showMixedValue = false;
+            _resetTool.EndResetModifyButtonScope();
         }
 
         Vector2 GetVec2InVec4(Vector4 vec4,bool isFirstLine)
@@ -734,24 +742,48 @@ namespace UnityEditor
             }
             return newRec;
         }
+        public void DrawTextureFoldOut(int foldOutFlagBit,int foldOutFlagIndex,int animBoolIndex,string label, string texturePropertyName,
+            string colorPropertyName = null, bool drawScaleOffset = true, bool drawWrapMode = false,
+            int flagBitsName = 0, int flagIndex = 2, Action<MaterialProperty> drawBlock = null)
+        {
+            bool foldOutState = shaderFlags[0].CheckFlagBits(foldOutFlagBit, index: foldOutFlagIndex);
+            AnimBool animBool = GetAnimBool(foldOutFlagBit, animBoolIndex, foldOutFlagIndex);
+            animBool.target = foldOutState;
+            DrawTextureFoldOut(ref animBool, label, texturePropertyName, colorPropertyName, drawScaleOffset,
+                drawWrapMode, flagBitsName, flagIndex, drawBlock);
+            foldOutState = animBool.target;
+            if (foldOutState)
+            {
+                shaderFlags[0].SetFlagBits(foldOutFlagBit, index: foldOutFlagIndex);
+            }
+            else
+            {
+                shaderFlags[0].ClearFlagBits(foldOutFlagBit, index: foldOutFlagIndex);
+            }
+        }
+
 
         public void DrawTextureFoldOut(ref AnimBool foldOutAnimBool, string label, string texturePropertyName,
             string colorPropertyName = null, bool drawScaleOffset = true, bool drawWrapMode = false,
             int wrapModeFlagBitsName = 0, int flagIndex = 2, Action<MaterialProperty> drawBlock = null)
         {
-            EditorGUILayout.BeginHorizontal();
-            var rect = EditorGUILayout.GetControlRect(false,68f);//MaterialEditor.GetTextureFieldHeight() => 64f;
+            // EditorGUILayout.BeginHorizontal();
+            // var rect = EditorGUILayout.GetControlRect(false,68f);//MaterialEditor.GetTextureFieldHeight() => 64f;
             // var foldoutRect = new Rect(rect.x, rect.y, rect.width , rect.height);
-            var textureThumbnialRect = new Rect(rect.x , rect.y, rect.width, rect.height);
-            Texture texture = matEditor.TextureProperty(textureThumbnialRect,GetProperty(texturePropertyName), label, drawScaleOffset);
-            EditorGUILayout.EndHorizontal();
+            // var textureThumbnialRect = new Rect(rect.x , rect.y, rect.width, rect.height);
+            // Texture texture = matEditor.TextureProperty(textureThumbnialRect,GetProperty(texturePropertyName), label, drawScaleOffset);
+            Texture texture = TextureProperty(GetProperty(texturePropertyName), label, drawScaleOffset);
+            // EditorGUILayout.EndHorizontal();
 
             if (colorPropertyName != null)
             {
                 // Rect colorPropRect = GetRectAfterLabelWidth(rect, true);
                 // colorPropRect.x -= EditorGUI.indentLevel
-                Rect colorPropRect = EditorGUILayout.GetControlRect(false);
-                Color color = matEditor.ColorProperty(colorPropRect, GetProperty(colorPropertyName), "");
+                // EditorGUI.indentLevel++;
+                // Rect colorPropRect = EditorGUILayout.GetControlRect(false);
+                // Color color = matEditor.ColorProperty(colorPropRect, GetProperty(colorPropertyName), "");
+                ColorProperty("",colorPropertyName,true);
+                // EditorGUI.indentLevel--;
             }
             var foldoutRect = EditorGUILayout.GetControlRect(false);//MaterialEditor.GetTextureFieldHeight() => 64f;
             Rect labelRect = foldoutRect;
@@ -778,14 +810,131 @@ namespace UnityEditor
             matEditor.TextureProperty(GetProperty(texturePropertyName),label,drawScaleOffset);
             if (colorPropertyName != null)
             {
-                Rect colorRect = EditorGUILayout.GetControlRect();
-                matEditor.ColorProperty(colorRect,GetProperty(colorPropertyName), "");
+                // Rect colorRect = EditorGUILayout.GetControlRect();
+                // matEditor.ColorProperty(colorRect,GetProperty(colorPropertyName), "");
+                ColorProperty("",colorPropertyName,true);
+                
             }
                 
             DrawAfterTexture(hasTexture, label, texturePropertyName, false, drawWrapMode, wrapModeFlagBitsName,
                 flagIndex, drawBlock);
         }
+        
+        Texture TextureProperty(MaterialProperty textureProperty, string label, bool drawScaleOffset)
+        {
+            ShaderPropertyPack texturePropertyPack = ShaderPropertyPacksDic[textureProperty.name];
+            float indentWidth = 15f;
+            float currentIndentWidth = EditorGUI.indentLevel * indentWidth;
+            float singleLineHeight = EditorGUIUtility.singleLineHeight;
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.GetControlRect(GUILayout.Width(EditorGUI.indentLevel * indentWidth));
+            float textureFieldHeight = 3*singleLineHeight;
+            var textureRect = EditorGUILayout.GetControlRect(GUILayout.Height(textureFieldHeight),GUILayout.Width(textureFieldHeight));
+            
+            EditorGUILayout.BeginVertical();
+            var textureLabelRect = EditorGUILayout.GetControlRect();
+            textureLabelRect.x -= currentIndentWidth;
+            textureLabelRect.width += currentIndentWidth;
+            EditorGUI.LabelField(textureLabelRect,label,EditorStyles.boldLabel);
+       
+            var textureResetButtonRect = textureLabelRect;
+            textureResetButtonRect.x += textureResetButtonRect.width;
+            textureResetButtonRect.x -= _resetTool.ResetButtonSize;
+            textureResetButtonRect.width = _resetTool.ResetButtonSize;
 
+            float tillingOffsetLabelWidth = 30f;
+            Rect tillingRect = EditorGUILayout.GetControlRect();
+            Rect tillingVec2Rect = tillingRect;
+            tillingVec2Rect.x += tillingOffsetLabelWidth;
+            tillingVec2Rect.width -= tillingOffsetLabelWidth;
+            tillingVec2Rect.width -= _resetTool.ResetButtonSize;
+            tillingVec2Rect.width -= 2f;
+            Rect tillingResetButtonRect = tillingRect;
+            tillingResetButtonRect.x = tillingResetButtonRect.x + tillingResetButtonRect.width - _resetTool.ResetButtonSize;
+            tillingResetButtonRect.width = _resetTool.ResetButtonSize;
+            Rect offsetRect = EditorGUILayout.GetControlRect();
+            Rect offsetVec2Rect = offsetRect;
+            offsetVec2Rect.x += tillingOffsetLabelWidth;
+            offsetVec2Rect.width -= tillingOffsetLabelWidth;
+            offsetVec2Rect.width -= _resetTool.ResetButtonSize;
+            offsetVec2Rect.width -= 2f;
+            Rect offsetResetButtonRect = offsetRect;
+            offsetResetButtonRect.x = offsetResetButtonRect.x + offsetResetButtonRect.width - _resetTool.ResetButtonSize;
+            offsetResetButtonRect.width = _resetTool.ResetButtonSize;
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.EndHorizontal();
+            
+            Texture texture = textureProperty.textureValue;
+            Action drawTextureEndChangeCheck = () =>
+            {
+                textureProperty.textureValue = texture;
+                _resetTool.CheckHasModifyOnValueChange((label,texturePropertyPack.property.name));
+            };
+            EditorGUI.BeginChangeCheck();
+            texture = (Texture)EditorGUI.ObjectField(textureRect,texture,typeof(Texture2D));
+            if (EditorGUI.EndChangeCheck())
+            {
+                drawTextureEndChangeCheck();
+            }
+            _resetTool.DrawResetModifyButton(textureResetButtonRect,label,texturePropertyPack,resetAction: () =>
+            {
+                texture = null;
+            },onValueChangedCallBack:drawTextureEndChangeCheck);
+            _resetTool.EndResetModifyButtonScope();
+
+            // MaterialProperty tillingOffsetProp = GetProperty(textureProperty.name + "_ST");
+            Vector4 tillingOffset = textureProperty.textureScaleAndOffset;
+            string tillingLabel = "Tilling";
+            var tillingTuple = (tillingLabel, textureProperty.name + "_ST");
+            GUI.Label(tillingRect,tillingLabel);
+            Vector2 tilling = new Vector2(tillingOffset.x, tillingOffset.y);
+            Action drawTillingEndChangeCheck = () =>
+            {
+                tillingOffset.x = tilling.x;
+                tillingOffset.y = tilling.y;
+                textureProperty.textureScaleAndOffset = tillingOffset;
+                _resetTool.CheckHasModifyOnValueChange(tillingTuple);
+
+            };
+            EditorGUI.BeginChangeCheck();
+            tilling = EditorGUI.Vector2Field(tillingVec2Rect, "", tilling);
+            if (EditorGUI.EndChangeCheck())
+            {
+                drawTillingEndChangeCheck();
+            }
+            
+            _resetTool.DrawResetModifyButton(tillingResetButtonRect,tillingTuple,texturePropertyPack,resetAction: () =>
+            {
+                tilling = Vector2.one;
+            },onValueChangedCallBack:drawTillingEndChangeCheck,VectorValeType.Tilling);
+            _resetTool.EndResetModifyButtonScope();
+            
+            string offsetLabel = "Offset";
+            var offsetTuple = (offsetLabel, textureProperty.name + "_ST");
+            GUI.Label(offsetRect,offsetLabel);
+            Vector2 offset = new Vector2(tillingOffset.z, tillingOffset.w);
+            Action drawOffsetEndChangeCheck = () =>
+            {
+                tillingOffset.z = offset.x;
+                tillingOffset.w = offset.y;
+                textureProperty.textureScaleAndOffset = tillingOffset;
+                _resetTool.CheckHasModifyOnValueChange(offsetTuple);
+
+            };
+            EditorGUI.BeginChangeCheck();
+            offset = EditorGUI.Vector2Field(offsetVec2Rect, "", offset);
+            if (EditorGUI.EndChangeCheck())
+            {
+                drawOffsetEndChangeCheck();
+            }
+            
+            _resetTool.DrawResetModifyButton(offsetResetButtonRect,offsetTuple,texturePropertyPack,resetAction: () =>
+            {
+                offset = Vector2.zero;
+            },onValueChangedCallBack:drawOffsetEndChangeCheck,VectorValeType.Offset);
+            _resetTool.EndResetModifyButtonScope();
+            return texture;
+        }
         bool WrapModeFlagHasMixedValue(int wrapModeFlagBitsName, int flagIndex)
         {
             int tmpWrapMode = 0;
@@ -852,9 +1001,8 @@ namespace UnityEditor
                 Enum.GetNames(typeof(SamplerWarpMode)));
             if (EditorGUI.EndChangeCheck())
             {
-                SetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex,tmpWrapMode);
+                SetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex, tmpWrapMode);
             }
-            EditorGUI.showMixedValue = false;
         }
         public void DrawAfterTexture(bool hasTexture, string label, string texturePropertyName,
             bool drawScaleOffset = false, bool drawWrapMode = false, int wrapModeFlagBitsName = 0, int flagIndex = 2,
@@ -865,17 +1013,6 @@ namespace UnityEditor
             if (drawWrapMode)
             {
                 DrawWrapMode(label, wrapModeFlagBitsName,flagIndex);
-                // EditorGUI.showMixedValue = WrapModeFlagHasMixedValue(wrapModeFlagBitsName, flagIndex);
-                //
-                // int tmpWrapMode = GetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex,shaderFlags[0]);
-                // EditorGUI.BeginChangeCheck();
-                // tmpWrapMode = EditorGUILayout.Popup(new GUIContent(label + "循环模式"), tmpWrapMode,
-                //     Enum.GetNames(typeof(SamplerWarpMode)));
-                // if (EditorGUI.EndChangeCheck())
-                // {
-                //     SetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex,tmpWrapMode);
-                // }
-                // EditorGUI.showMixedValue = false;
             }
 
             if (drawScaleOffset)
@@ -910,22 +1047,28 @@ namespace UnityEditor
                     optionGUIContents[i] = new GUIContent(options[i]);
                 }
             }
+            
+            Action drawOnValueChanged = () =>
+            {
+                property.floatValue = mode;
+                drawOnValueChangedBlock?.Invoke(property);
+                _resetTool.CheckHasModifyOnValueChange((label,propertyName));
+            };
 
+            EditorGUILayout.BeginHorizontal();
             mode = EditorGUILayout.Popup(new GUIContent(label), (int)mode, optionGUIContents);
             if (EditorGUI.EndChangeCheck())
             {
-                int propID = Shader.PropertyToID(propertyName);
-                for (int i = 0; i < mats.Count; i++)
-                {
-                    mats[i].SetFloat(propID,mode);   
-                }
-
-                property.floatValue = mode;
-                drawOnValueChangedBlock?.Invoke(property);
+                drawOnValueChanged.Invoke();
             }
+            _resetTool.DrawResetModifyButton(label,ShaderPropertyPacksDic[propertyName],resetAction: () =>
+            {
+                mode = property.floatValue;
+            },onValueChangedCallBack:drawOnValueChanged);
+            EditorGUILayout.EndHorizontal();
 
             drawBlock?.Invoke(property);
-
+            _resetTool.EndResetModifyButtonScope();
             EditorGUI.showMixedValue = false;
         }
 
@@ -1273,5 +1416,10 @@ namespace UnityEditor
         
        
 
+    }
+
+    public enum VectorValeType
+    {
+        X,Y,Z,W,XY,ZW,XYZ,XYZW,Tilling,Offset,Undefine
     }
 }

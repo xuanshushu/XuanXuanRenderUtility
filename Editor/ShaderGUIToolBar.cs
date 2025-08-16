@@ -1,6 +1,7 @@
 ﻿
 using UnityEngine;
-namespace UnityEditor
+using UnityEditor;
+namespace NBShaderEditor
 {
 
     public class ShaderGUIToolBar

@@ -3,9 +3,9 @@ using System;
 using PlasticGui;
 using UnityEngine;
 using UnityEngine.UIElements;
-using ShaderPropertyPack = UnityEditor.ShaderGUIHelper.ShaderPropertyPack;
-
-namespace UnityEditor
+using ShaderPropertyPack = NBShaderEditor.ShaderGUIHelper.ShaderPropertyPack;
+using UnityEditor;
+namespace NBShaderEditor
 {
     public class ShaderGUIResetTool
     {
@@ -95,21 +95,40 @@ namespace UnityEditor
                resetItem.HasModified = resetItem.CheckHasModifyOnValueChange();
             }
         }
-        public void DrawResetModifyButton(string label,ShaderPropertyPack pack, Action resetAction = null,Action onValueChangedCallBack = null)
+
+        public void DrawResetModifyButton(string label, ShaderPropertyPack pack, Action resetAction = null,
+            Action onValueChangedCallBack = null)
         {
-            (string, string) nameTuple = (label, pack.property.name);
+            DrawResetModifyButton(new Rect(),label,pack,resetAction,onValueChangedCallBack);
+        }
+
+        public void DrawResetModifyButton(Rect rect, string label, ShaderPropertyPack pack, Action resetAction = null,
+            Action onValueChangedCallBack = null, VectorValeType vectorValeType = VectorValeType.Undefine)
+        {
+            DrawResetModifyButton(rect, (label,pack.property.name), pack, resetAction, onValueChangedCallBack, vectorValeType);
+        }
+        public void DrawResetModifyButton(Rect rect,(string,string)nameTuple,ShaderPropertyPack pack, Action resetAction = null,Action onValueChangedCallBack = null,VectorValeType vectorValeType = VectorValeType.Undefine)
+        {
+            
+            // (string, string) nameTuple = (label, pack.property.name);
             ConstructResetItem(nameTuple,
                 resetAction: ()=>{
-                    SetPropertyToDefaultValue(pack); 
+                    SetPropertyToDefaultValue(pack,vectorValeType); 
                     resetAction?.Invoke();
-                },onValueChangedCallBack:onValueChangedCallBack,
-                checkHasModifyOnValueChange: () => IsPropertyModified(pack)
+                },onValueChangedCallBack:()=>
+                {
+                    onValueChangedCallBack?.Invoke();//这个里面必须要写CheckHasModifyOnValueChange。因为不在Reset的时候，属性值本身变化的时候也要看看修改了没。
+                },
+                checkHasModifyOnValueChange: () => IsPropertyModified(pack,vectorValeType)
                 );
-            ResetItem item = ResetItemDict[nameTuple];
-            DrawResetModifyButton(item.HasModified, pack.property.hasMixedValue, () =>
+            if (ResetItemDict.ContainsKey(nameTuple))
             {
-                item.Execute();
-            });
+                ResetItem item = ResetItemDict[nameTuple];
+                DrawResetModifyButton(rect,item.HasModified, pack.property.hasMixedValue, () =>
+                {
+                    item.Execute();
+                });
+            }
         }
 
         public void DrawResetModifyButton(string label)
@@ -129,8 +148,9 @@ namespace UnityEditor
             }
 
             thisItem.HasModified = thisItem.CheckHasModifyOnValueChange();
-            DrawResetModifyButton(thisItem.HasModified,false,thisItem.Execute);
+            DrawResetModifyButton(new Rect(),thisItem.HasModified,false,thisItem.Execute);
         }
+        
 
         public void ConstructResetItem((string,string) nameTuple, Action resetAction = null,
             Action onValueChangedCallBack = null,Func<bool> checkHasModifyOnValueChange = null)
@@ -159,42 +179,96 @@ namespace UnityEditor
             if(_scopeContextStack.Count == 0) return;
             _scopeContextStack.Pop();
         }
-        
 
+        public float ResetButtonSize => EditorGUIUtility.singleLineHeight;
+
+        private GUIContent resetIconContent = new GUIContent();
         //仅仅只是Drawer
-        private void DrawResetModifyButton(bool hasModified, bool hasMixedValue,Action onResetButton)
+        private void DrawResetModifyButton(Rect position,bool hasModified, bool hasMixedValue,Action onResetButton)
         {
             // GUILayout.FlexibleSpace();
 
-            float btnSize = EditorGUIUtility.singleLineHeight;
+            float btnSize = ResetButtonSize;
+            string iconText;
+            bool isDisabled = true;
+            GUIStyle iconStyle;
             if (hasModified || hasMixedValue)
             {
-                if (GUILayout.Button("R", GUILayout.Width(btnSize), GUILayout.Height(btnSize)))
-                {
-                    onResetButton?.Invoke();
-                }
+                isDisabled = false;
+                iconText = "R";
+                iconStyle = GUI.skin.button;
             }
             else
             {
-                GUILayout.Label("",GUILayout.Width(btnSize), GUILayout.Height(btnSize));
+                isDisabled = true;
+                iconText = "";
+                iconStyle = GUI.skin.label;
             }
 
+            resetIconContent.text = iconText;
+            EditorGUI.BeginDisabledGroup(isDisabled);
+            // if (GUILayout.Button(iconTexture, GUILayout.Width(btnSize), GUILayout.Height(btnSize)))
+            if (position.width <= 0)
+            {
+                position = GUILayoutUtility.GetRect(resetIconContent, iconStyle, GUILayout.Width(btnSize),
+                    GUILayout.Height(btnSize));
+            }
+            if(GUI.Button(position,resetIconContent,iconStyle))
+            {
+                
+                onResetButton?.Invoke();
+            }
+            EditorGUI.EndDisabledGroup();
         }
-
-
      
-        public void SetPropertyToDefaultValue(ShaderPropertyPack pack)
+        public void SetPropertyToDefaultValue(ShaderPropertyPack pack,VectorValeType vectorValeType = VectorValeType.Undefine)
         {
             MaterialProperty property = pack.property;
-            switch (pack.property.type)
+            MaterialProperty.PropType propertyType = property.type;
+            if (pack.property.type == MaterialProperty.PropType.Texture && vectorValeType != VectorValeType.Undefine)
+            {
+                propertyType = MaterialProperty.PropType.Vector;//Tilling or Offset
+            }
+            switch (propertyType)
             {
                 case MaterialProperty.PropType.Color:
-                    Vector4 vecValue = _shader.GetPropertyDefaultVectorValue(pack.index);
-                    property.colorValue = new Color(vecValue.x, vecValue.y, vecValue.z, vecValue.x);
+                    Vector4 colorValue = _shader.GetPropertyDefaultVectorValue(pack.index);
+                    property.colorValue = new Color(colorValue.x, colorValue.y, colorValue.z, colorValue.x);
                     break;
 
                 case MaterialProperty.PropType.Vector:
-                    property.vectorValue = _shader.GetPropertyDefaultVectorValue(pack.index);
+                    Vector4 defaultVecValue;
+                    Vector4 vecValue;
+                    if (vectorValeType == VectorValeType.Tilling || vectorValeType == VectorValeType.Offset)
+                    {
+                        defaultVecValue = new Vector4(1f, 1f, 0f, 0f);
+                        vecValue = property.textureScaleAndOffset;
+                        
+                    }
+                    else
+                    {
+                        defaultVecValue = _shader.GetPropertyDefaultVectorValue(pack.index);
+                        vecValue = property.vectorValue;
+                    }
+                    switch (vectorValeType)
+                    {
+                        case VectorValeType.Undefine: Debug.LogError("VectorValeType is undefined"); break;
+                        case VectorValeType.X: vecValue.x = defaultVecValue.x;property.vectorValue = vecValue;break;
+                        case VectorValeType.Y: vecValue.y = defaultVecValue.y;property.vectorValue = vecValue;break;
+                        case VectorValeType.Z: vecValue.z = defaultVecValue.z;property.vectorValue = vecValue;break;
+                        case VectorValeType.W: vecValue.w = defaultVecValue.w;property.vectorValue = vecValue;break;
+                        case VectorValeType.XY:vecValue.x = defaultVecValue.x; vecValue.y = defaultVecValue.y;
+                            property.vectorValue = vecValue;break;
+                        case VectorValeType.Tilling:vecValue.x = defaultVecValue.x; vecValue.y = defaultVecValue.y;
+                            property.textureScaleAndOffset = vecValue;break;
+                        case VectorValeType.ZW:vecValue.z = defaultVecValue.z; vecValue.w = defaultVecValue.w;
+                            property.vectorValue = vecValue;break;
+                        case VectorValeType.Offset:vecValue.z = defaultVecValue.z; vecValue.w = defaultVecValue.w;
+                            property.textureScaleAndOffset = vecValue;break;
+                        case VectorValeType.XYZ:vecValue.x = defaultVecValue.x; vecValue.y = defaultVecValue.y;
+                            vecValue.z = defaultVecValue.z; property.vectorValue = vecValue;break;
+                        case VectorValeType.XYZW: property.vectorValue = defaultVecValue;break;
+                    }
                     break;
 
                 case MaterialProperty.PropType.Float or MaterialProperty.PropType.Range:
@@ -209,7 +283,7 @@ namespace UnityEditor
                     }
                     else
                     {
-                        //TODO 如何ResetTexture；
+                        property.textureValue = null;
                         break;
                     }
                 // return property.textureValue.name == shader.GetPropertyTextureDefaultName(pack.index) ? false : true;
@@ -221,18 +295,63 @@ namespace UnityEditor
             }
         }
 
-        public bool IsPropertyModified(ShaderPropertyPack pack)
+        public bool IsPropertyModified(ShaderPropertyPack pack,VectorValeType vectorValeType = VectorValeType.Undefine)
         {
             MaterialProperty property = pack.property;
-            switch (pack.property.type)
+            MaterialProperty.PropType propertyType = property.type;
+            if (pack.property.type == MaterialProperty.PropType.Texture && vectorValeType != VectorValeType.Undefine)
+            {
+                propertyType = MaterialProperty.PropType.Vector;//Tilling or Offset
+            }
+            switch (propertyType)
             {
                 case MaterialProperty.PropType.Color:
-                    Vector4 vecValue = _shader.GetPropertyDefaultVectorValue(pack.index);
-                    Color color = new Color(vecValue.x, vecValue.y, vecValue.z, vecValue.w);
+                    Vector4 colorValue = _shader.GetPropertyDefaultVectorValue(pack.index);
+                    Color color = new Color(colorValue.x, colorValue.y, colorValue.z, colorValue.w);
                     return property.colorValue == color ? false : true;
 
                 case MaterialProperty.PropType.Vector:
-                    return property.vectorValue == _shader.GetPropertyDefaultVectorValue(pack.index) ? false : true;
+
+                    Vector4 defaultVecValue;
+                    Vector4 vecValue;
+                    if (vectorValeType == VectorValeType.Tilling || vectorValeType == VectorValeType.Offset)
+                    {
+                        defaultVecValue = new Vector4(1f, 1f, 0f, 0f);
+                        vecValue = property.textureScaleAndOffset;
+                        
+                    }
+                    else
+                    {
+                        defaultVecValue = _shader.GetPropertyDefaultVectorValue(pack.index);
+                        vecValue = property.vectorValue;
+                    }
+
+                
+                    Vector2 defaultVecXYValue = new Vector2(defaultVecValue.x, defaultVecValue.y);
+                    Vector2 defaultVecZWValue = new Vector2(defaultVecValue.z, defaultVecValue.w);
+                    Vector2 vecXYValue = new Vector2(vecValue.x, vecValue.y);
+                    Vector2 vecZWValue = new Vector2(vecValue.z, vecValue.w);
+                    Vector2 defaultVecXYZValue = new Vector3(defaultVecValue.x, defaultVecValue.y,defaultVecValue.z);
+                    Vector2 vecXYZValue = new Vector3(vecValue.x, vecValue.y,vecValue.z);
+                    
+
+                    bool isVecModified = false;
+                    switch (vectorValeType)
+                    {
+                        case VectorValeType.Undefine: Debug.LogError("VectorValeType is undefined"); break;
+                        case VectorValeType.X: isVecModified = Mathf.Approximately(vecValue.x,defaultVecValue.x) ? false : true;break;
+                        case VectorValeType.Y: isVecModified = Mathf.Approximately(vecValue.y,defaultVecValue.y) ? false : true;break;
+                        case VectorValeType.Z: isVecModified = Mathf.Approximately(vecValue.z,defaultVecValue.z) ? false : true;break;
+                        case VectorValeType.W: isVecModified = Mathf.Approximately(vecValue.w,defaultVecValue.w) ? false : true;break;
+                        case VectorValeType.XY:case VectorValeType.Tilling:
+                            isVecModified = vecXYValue == defaultVecXYValue ? false : true;break;
+                        case VectorValeType.ZW:case VectorValeType.Offset:
+                            isVecModified = vecZWValue == defaultVecZWValue ? false : true;break;
+                        case VectorValeType.XYZ:isVecModified = vecXYZValue == defaultVecXYZValue ? false : true ; break;
+                        case VectorValeType.XYZW:isVecModified=  vecValue == defaultVecValue? false : true ; break;
+                    }
+                    return isVecModified;
+                    break;
 
                 case MaterialProperty.PropType.Float or MaterialProperty.PropType.Range:
                     return Mathf.Approximately(property.floatValue, _shader.GetPropertyDefaultFloatValue(pack.index)) ? false : true;
@@ -240,7 +359,7 @@ namespace UnityEditor
                 case MaterialProperty.PropType.Texture:
                     if (property.textureValue == null)
                     {
-                        return true;
+                        return false;
                     }
                     else
                     {
