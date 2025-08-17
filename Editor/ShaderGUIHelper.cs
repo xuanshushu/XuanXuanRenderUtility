@@ -31,7 +31,7 @@ namespace NBShaderEditor
         {
             if(!shader) return;//会有一些空的Helper对象
             DrawGradientUndoPerformed();
-            _resetTool?.NeedUpdate();
+            ResetTool?.NeedUpdate();
         }
         
         public class ShaderPropertyPack
@@ -96,40 +96,37 @@ namespace NBShaderEditor
             }
            
 
-            if (_resetTool == null)
+            if (ResetTool == null)
             {
-                _resetTool = new ShaderGUIResetTool(this);
+                ResetTool = new ShaderGUIResetTool(this);
             }
             else
             {
-                _resetTool.EndInit();
-                _resetTool.Update();
+                ResetTool.EndInit();
+                ResetTool.Update();
             }
             
         }
   
         private ShaderGUIToolBar _toolBar;
-        private ShaderGUIResetTool _resetTool;
+        public ShaderGUIResetTool ResetTool;
 
         public void DrawToolBar()
         {
             if (_toolBar == null) _toolBar = new ShaderGUIToolBar(this);
             _toolBar.DrawToolbar();
         }
-
-  
-
-
+        
         public void DrawToggleFoldOut(int foldOutFlagBit,int foldOutFlagIndex, int animBoolIndex,string label, string propertyName,
             int flagBitsName = 0,
             int flagIndex = 0, string shaderKeyword = null, string shaderPassName = null, bool isIndentBlock = true, FontStyle fontStyle = FontStyle.Normal,
-            Action<MaterialProperty> drawBlock = null,Action<MaterialProperty> drawEndChangeCheck = null)
+            Action<MaterialProperty> drawBlock = null,Action<MaterialProperty> drawEndChangeCheck = null,bool isSharedGlobalParent = false)
         {
             bool foldOutState = shaderFlags[0].CheckFlagBits(foldOutFlagBit, index: foldOutFlagIndex);
             AnimBool animBool = GetAnimBool(foldOutFlagBit, animBoolIndex, foldOutFlagIndex); //foldOut里的第一组。
             animBool.target = foldOutState;
             DrawToggleFoldOut(ref animBool, label, propertyName, flagBitsName, flagIndex, shaderKeyword,
-                shaderPassName, isIndentBlock, fontStyle, drawBlock, drawEndChangeCheck);
+                shaderPassName, isIndentBlock, fontStyle, drawBlock, drawEndChangeCheck,isSharedGlobalParent:isSharedGlobalParent);
             foldOutState = animBool.target;
             if (foldOutState)
             {
@@ -156,13 +153,13 @@ namespace NBShaderEditor
             Action onEndChaneChange = () =>
             {
                 prop.colorValue = color;
-                _resetTool.CheckHasModifyOnValueChange((label,propertyName));
+                ResetTool.CheckOnValueChange((label,propertyName));
             };
             if (EditorGUI.EndChangeCheck())
             {
                 onEndChaneChange();
             }
-            _resetTool.DrawResetModifyButton(label,shaderPropertyPack,resetAction: () =>
+            ResetTool.DrawResetModifyButton(new Rect(),(label,shaderPropertyPack.name),shaderPropertyPack,resetAction: () =>
             {
                 color = prop.colorValue;
             },onValueChangedCallBack: onEndChaneChange);
@@ -170,7 +167,7 @@ namespace NBShaderEditor
             // matEditor.ColorProperty(GetProperty(propertyName), label);
             
             EditorGUILayout.EndHorizontal();
-            _resetTool.EndResetModifyButtonScope();
+            ResetTool.EndResetModifyButtonScope();
         }
 
         public void DrawBigBlockFoldOut(int foldOutFlagBit,int foldOutFlagIndex,int animBoolIndex ,string label, Action drawBlock)
@@ -221,7 +218,7 @@ namespace NBShaderEditor
             EditorGUI.LabelField(labelRect, label);
             EditorStyles.label.fontStyle = origFontStyle;
             
-            _resetTool.DrawResetModifyButton(label);
+            ResetTool.DrawResetModifyButton(label);
             EditorGUILayout.EndHorizontal();
             
             float faded = animBool.faded;
@@ -240,7 +237,7 @@ namespace NBShaderEditor
             {
                 shaderFlags[0].ClearFlagBits(foldOutFlagBit, index: foldOutFlagIndex);
             }
-            _resetTool.EndResetModifyButtonScope();
+            ResetTool.EndResetModifyButtonScope();
         }
 
         public void DrawBigBlockWithToggle(String label, string propertyName, int flagBitsName = 0, int flagIndex = 0,
@@ -258,7 +255,7 @@ namespace NBShaderEditor
             int flagBitsName = 0,
             int flagIndex = 0, string shaderKeyword = null, string shaderPassName = null, bool isIndentBlock = true,
             FontStyle fontStyle = FontStyle.Normal,
-            Action<MaterialProperty> drawBlock = null, Action<MaterialProperty> drawEndChangeCheck = null)
+            Action<MaterialProperty> drawBlock = null, Action<MaterialProperty> drawEndChangeCheck = null,bool isSharedGlobalParent = false)
         {
             ShaderPropertyPack propertyPack = ShaderPropertyPacksDic[propertyName];
             MaterialProperty toggleProp = GetProperty(propertyName);
@@ -278,7 +275,7 @@ namespace NBShaderEditor
 
             // bool isToggle = false;
             // 必须先画Toggle，不然按钮会被FoldOut和Label覆盖。
-            DrawToggle("", propertyName, flagBitsName, flagIndex, shaderKeyword, shaderPassName, isIndentBlock: false, fontStyle: FontStyle.Normal, rect: toggleRect, drawEndChangeCheck: drawEndChangeCheck);
+            DrawToggle("", propertyName, flagBitsName, flagIndex, shaderKeyword, shaderPassName, isIndentBlock: false, fontStyle: FontStyle.Normal, rect: toggleRect, drawEndChangeCheck: drawEndChangeCheck,isSharedGlobalParent:isSharedGlobalParent);
 
             // EditorGUI.DrawRect(foldoutRect,Color.red);
             foldOutAnimBool.target = EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
@@ -301,14 +298,14 @@ namespace NBShaderEditor
             EditorGUILayout.EndFadeGroup();
             if (isIndentBlock) EditorGUI.indentLevel--;
             
-            _resetTool.EndResetModifyButtonScope();//开始是在DrawToggle里开始的
+            ResetTool.EndResetModifyButtonScope();//开始是在DrawToggle里开始的
             
         }
 
         public void DrawToggle(String label, string propertyName, int flagBitsName = 0, int flagIndex = 0,
             string shaderKeyword = null, string shaderPassName = null, string shaderPassName2 = null,
             bool isIndentBlock = true, FontStyle fontStyle = FontStyle.Normal, Rect rect = new Rect(),
-            Action<MaterialProperty> drawBlock = null, Action<MaterialProperty> drawEndChangeCheck = null)
+            Action<MaterialProperty> drawBlock = null, Action<MaterialProperty> drawEndChangeCheck = null,bool isSharedGlobalParent = false)
         {
             if (GetProperty(propertyName) == null)
                 return;
@@ -340,7 +337,7 @@ namespace NBShaderEditor
             Action onEndChangeCheck = () =>
             {
                 toggleProperty.floatValue = isToggle ? 1.0f : 0.0f;
-                _resetTool.CheckHasModifyOnValueChange((label,propertyName));
+                ResetTool.CheckOnValueChange((label,propertyName));
                 if (!toggleProperty.hasMixedValue)
                 {
                     for (int i = 0; i < mats.Count; i++)
@@ -404,10 +401,10 @@ namespace NBShaderEditor
                 onEndChangeCheck();
             }
             
-            _resetTool.DrawResetModifyButton(label,propertyPack,resetAction: () =>
+            ResetTool.DrawResetModifyButton(new Rect(),(label,propertyPack.name),propertyPack,resetAction: () =>
             {
                 isToggle = propertyPack.property.floatValue > 0.5f ? true : false;
-            },onValueChangedCallBack:onEndChangeCheck);
+            },onValueChangedCallBack:onEndChangeCheck,isSharedGlobalParent:isSharedGlobalParent);
 
             if (rect.width <= 0)
             {
@@ -421,7 +418,7 @@ namespace NBShaderEditor
             EditorGUI.showMixedValue = false;
             if (rect.width <= 0)
             {
-                _resetTool.EndResetModifyButtonScope();//如果是DrawFoldOut，需要在DrawFoldOut里去结束。
+                ResetTool.EndResetModifyButtonScope();//如果是DrawFoldOut，需要在DrawFoldOut里去结束。
             }
         }
 
@@ -436,14 +433,14 @@ namespace NBShaderEditor
             Action endChangCallBack= () =>
             {
                 GetProperty(propertyName).floatValue = f;
-                _resetTool.CheckHasModifyOnValueChange((label,propertyName));
+                ResetTool.CheckOnValueChange((label,propertyName));
             };
             EditorGUI.showMixedValue = false;
             if (EditorGUI.EndChangeCheck())
             {
                 endChangCallBack.Invoke();
             }
-            _resetTool.DrawResetModifyButton(label,ShaderPropertyPacksDic[propertyName],resetAction: () =>
+            ResetTool.DrawResetModifyButton(new Rect(),(label,propertyName),ShaderPropertyPacksDic[propertyName],resetAction: () =>
             {
                 f = GetProperty(propertyName).floatValue;
             },onValueChangedCallBack:endChangCallBack);
@@ -451,7 +448,7 @@ namespace NBShaderEditor
             EditorGUILayout.EndHorizontal();
             
 
-            _resetTool.EndResetModifyButtonScope();
+            ResetTool.EndResetModifyButtonScope();
         }
 
 
@@ -466,7 +463,7 @@ namespace NBShaderEditor
             Action endChangeCallback = () =>
             {
                 floatProperty.floatValue = f;
-                _resetTool.CheckHasModifyOnValueChange((label,propertyName));
+                ResetTool.CheckOnValueChange((label,propertyName));
             };
             EditorGUILayout.BeginHorizontal();
             f = EditorGUILayout.FloatField(label, f);
@@ -477,7 +474,7 @@ namespace NBShaderEditor
                 endChangeCallback.Invoke();
             }
             
-            _resetTool.DrawResetModifyButton(label,ShaderPropertyPacksDic[propertyName],resetAction: () =>
+            ResetTool.DrawResetModifyButton(new Rect(),(label,propertyName),ShaderPropertyPacksDic[propertyName],resetAction: () =>
             {
                 f = floatProperty.floatValue;
             },onValueChangedCallBack:endChangeCallback);
@@ -485,7 +482,7 @@ namespace NBShaderEditor
 
             drawBlock?.Invoke(floatProperty);
             EditorGUI.showMixedValue = false;
-            _resetTool.EndResetModifyButtonScope();
+            ResetTool.EndResetModifyButtonScope();
         }
 
         Vector2 GetVec2InVec4(Vector4 vec4,bool isFirstLine)
@@ -515,7 +512,20 @@ namespace NBShaderEditor
                  return vec4;
             }
         }
-        
+
+        Vector2 GetVecInTwoLineDefaultValue(string propertyName, bool isFirstLine)
+        {
+            ShaderPropertyPack propertyPack = ShaderPropertyPacksDic[propertyName];
+            Vector4 defaultVector = shader.GetPropertyDefaultVectorValue(propertyPack.index);
+            if (isFirstLine)
+            {
+                return new Vector2(defaultVector.x, defaultVector.y);
+            }
+            else
+            {
+                return new Vector2(defaultVector.z, defaultVector.w);
+            }
+        }
 
         bool Vector4In2LineHasMixedValue(string propertyName, bool isFirstLine)
         {
@@ -546,16 +556,15 @@ namespace NBShaderEditor
         public void DrawVector4In2Line(string propertyName, string label , bool isFirstLine,
             Action drawBlock = null)
         {
-            EditorGUI.showMixedValue = Vector4In2LineHasMixedValue(propertyName, true);
+            EditorGUI.showMixedValue = Vector4In2LineHasMixedValue(propertyName, isFirstLine);
             MaterialProperty property = GetProperty(propertyName);
-
+            (string,string) nameTuple = (label,propertyName);
             EditorGUI.BeginChangeCheck();
+            EditorGUILayout.BeginHorizontal();
 
-                Vector2 vec2 = GetVec2InVec4(property.vectorValue, isFirstLine);
-                vec2 = EditorGUILayout.Vector2Field(label, vec2);
-            
-
-            if (EditorGUI.EndChangeCheck())
+            Vector2 vec2 = GetVec2InVec4(property.vectorValue, isFirstLine);
+            vec2 = EditorGUILayout.Vector2Field(label, vec2);
+            Action vec2OnEndChangeCheck = () =>
             {
                 int shaderID = Shader.PropertyToID(propertyName);
                 for (int i = 0; i < mats.Count; i++)
@@ -564,17 +573,36 @@ namespace NBShaderEditor
                     vec4 = SetVec2InVec4(vec4, isFirstLine, vec2);
                     if (mats.Count == 1)
                     {
-                        GetProperty(propertyName).vectorValue = vec4;//为了K动画，多选不能K动画。   
+                        GetProperty(propertyName).vectorValue = vec4; //为了K动画，多选不能K动画。   
                     }
                     else
                     {
                         mats[i].SetVector(shaderID, vec4);
                     }
                 }
+                ResetTool.CheckOnValueChange(nameTuple);
+            };
+
+
+            if (EditorGUI.EndChangeCheck())
+            {
+                vec2OnEndChangeCheck();
             }
+            EditorGUI.showMixedValue = false;
+            
+            ResetTool.DrawResetModifyButton(nameTuple,
+                resetCallBack:()=>
+                {
+                    vec2 = GetVecInTwoLineDefaultValue(propertyName, isFirstLine);
+                    vec2OnEndChangeCheck();
+                },
+                onValueChangedCallBack:vec2OnEndChangeCheck,
+                checkHasModifyOnValueChange: () => GetVec2InVec4(mats[0].GetVector(propertyName), isFirstLine) != GetVecInTwoLineDefaultValue(propertyName, isFirstLine),
+                checkHasMixedValueOnValueChange:()=>Vector4In2LineHasMixedValue(propertyName, isFirstLine));
 
             drawBlock?.Invoke();
-            EditorGUI.showMixedValue = false;
+            ResetTool.EndResetModifyButtonScope();
+            EditorGUILayout.EndHorizontal();
 
         }
 
@@ -598,6 +626,14 @@ namespace NBShaderEditor
             }
 
             return f;
+        }
+
+        float GetCompDefaultValueInVec4(string propertyName, string comp)
+        {
+            float f = 0;
+            ShaderPropertyPack propertyPack = ShaderPropertyPacksDic[propertyName];
+            Vector4 defaultValue = shader.GetPropertyDefaultVectorValue(propertyPack.index);
+            return GetCompInVec4(defaultValue, comp);
         }
 
         Vector4 SetCompInVec4(Vector4 vec, string comp, float value)
@@ -651,11 +687,13 @@ namespace NBShaderEditor
             bool isReciprocal = false, Action<float,bool> drawBlock = null, Action<float,bool> drawEndChangeCheckBlock = null)
         {
             bool hasMixedValue = Vector4ComponentHasMixedValue(propertyName, channel);
+            (string, string) nameTuple = (label, propertyName);
             EditorGUI.showMixedValue = hasMixedValue;
             Vector4 vec = GetProperty(propertyName).vectorValue;
             float f = GetCompInVec4(vec, channel);
             f *= multiplier;
             if (isReciprocal) f = 1 / f;
+            EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginChangeCheck();
             if (isSlider)
             {
@@ -677,7 +715,7 @@ namespace NBShaderEditor
             if (isReciprocal) f = 1 / f;
             f /= multiplier;
 
-            if (EditorGUI.EndChangeCheck())
+            Action floatVecEndChangeCheck = () =>
             {
                 int id= Shader.PropertyToID(propertyName);
                 for (int i = 0; i < mats.Count; i++)
@@ -694,27 +732,63 @@ namespace NBShaderEditor
                     }
                 }
 
-                drawEndChangeCheckBlock?.Invoke(f, hasMixedValue);
+                drawEndChangeCheckBlock?.Invoke(f, hasMixedValue); 
+                ResetTool.CheckOnValueChange(nameTuple);
+            };
+
+            if (EditorGUI.EndChangeCheck())
+            {
+                floatVecEndChangeCheck();
             }
+            
+            ResetTool.DrawResetModifyButton(nameTuple,
+                resetCallBack:()=>
+                {
+                    f = GetCompDefaultValueInVec4(propertyName, channel);
+                    floatVecEndChangeCheck();
+                },onValueChangedCallBack:floatVecEndChangeCheck,
+                checkHasModifyOnValueChange: () =>
+                {
+                    bool isEqual = Mathf.Approximately(GetCompInVec4(mats[0].GetVector(propertyName), channel),
+                        GetCompDefaultValueInVec4(propertyName, channel));
+                    return !isEqual;
+                },
+                checkHasMixedValueOnValueChange: () => Vector4ComponentHasMixedValue(propertyName, channel));
+            EditorGUILayout.EndHorizontal();
 
             drawBlock?.Invoke(f,hasMixedValue);
+            ResetTool.EndResetModifyButtonScope();
             EditorGUI.showMixedValue = false;
         }
 
         public void DrawVector4XYZComponet(string label, string propertyName, Action<Vector3> drawBlock = null)
         {
             EditorGUI.showMixedValue = GetProperty(propertyName).hasMixedValue;
+            (string, string) nameTuple = (label, propertyName);
             Vector4 originVec = GetProperty(propertyName).vectorValue;
             Vector3 vec = originVec;
             EditorGUI.BeginChangeCheck();
+            EditorGUILayout.BeginHorizontal();
             vec = EditorGUILayout.Vector3Field(label, vec);
-            if (EditorGUI.EndChangeCheck())
+            EditorGUI.showMixedValue = false;
+            Action drawEndChangeCheck = () =>
             {
                 GetProperty(propertyName).vectorValue = new Vector4(vec.x, vec.y, vec.z, originVec.w);
+                ResetTool.CheckOnValueChange(nameTuple);
+                
+            };
+            if (EditorGUI.EndChangeCheck())
+            {
+                drawEndChangeCheck();
             }
-
+            
+            ResetTool.DrawResetModifyButton(new Rect(),nameTuple,ShaderPropertyPacksDic[propertyName],resetAction: () =>
+            {
+                vec = GetProperty(propertyName).vectorValue;
+            },onValueChangedCallBack:drawEndChangeCheck,vectorValeType:VectorValeType.XYZ);
+            EditorGUILayout.EndHorizontal();
             drawBlock?.Invoke(vec);
-            EditorGUI.showMixedValue = false;
+            ResetTool.EndResetModifyButtonScope();
         }
 
         public enum SamplerWarpMode
@@ -807,7 +881,8 @@ namespace NBShaderEditor
             Action<MaterialProperty> drawBlock = null)
         {
             bool hasTexture = mats[0].GetTexture(texturePropertyName) != null;
-            matEditor.TextureProperty(GetProperty(texturePropertyName),label,drawScaleOffset);
+            Texture texture = TextureProperty(GetProperty(texturePropertyName), label, drawScaleOffset);
+            // matEditor.TextureProperty(GetProperty(texturePropertyName),label,drawScaleOffset);
             if (colorPropertyName != null)
             {
                 // Rect colorRect = EditorGUILayout.GetControlRect();
@@ -839,28 +914,28 @@ namespace NBShaderEditor
        
             var textureResetButtonRect = textureLabelRect;
             textureResetButtonRect.x += textureResetButtonRect.width;
-            textureResetButtonRect.x -= _resetTool.ResetButtonSize;
-            textureResetButtonRect.width = _resetTool.ResetButtonSize;
+            textureResetButtonRect.x -= ResetTool.ResetButtonSize;
+            textureResetButtonRect.width = ResetTool.ResetButtonSize;
 
             float tillingOffsetLabelWidth = 30f;
             Rect tillingRect = EditorGUILayout.GetControlRect();
             Rect tillingVec2Rect = tillingRect;
             tillingVec2Rect.x += tillingOffsetLabelWidth;
             tillingVec2Rect.width -= tillingOffsetLabelWidth;
-            tillingVec2Rect.width -= _resetTool.ResetButtonSize;
+            tillingVec2Rect.width -= ResetTool.ResetButtonSize;
             tillingVec2Rect.width -= 2f;
             Rect tillingResetButtonRect = tillingRect;
-            tillingResetButtonRect.x = tillingResetButtonRect.x + tillingResetButtonRect.width - _resetTool.ResetButtonSize;
-            tillingResetButtonRect.width = _resetTool.ResetButtonSize;
+            tillingResetButtonRect.x = tillingResetButtonRect.x + tillingResetButtonRect.width - ResetTool.ResetButtonSize;
+            tillingResetButtonRect.width = ResetTool.ResetButtonSize;
             Rect offsetRect = EditorGUILayout.GetControlRect();
             Rect offsetVec2Rect = offsetRect;
             offsetVec2Rect.x += tillingOffsetLabelWidth;
             offsetVec2Rect.width -= tillingOffsetLabelWidth;
-            offsetVec2Rect.width -= _resetTool.ResetButtonSize;
+            offsetVec2Rect.width -= ResetTool.ResetButtonSize;
             offsetVec2Rect.width -= 2f;
             Rect offsetResetButtonRect = offsetRect;
-            offsetResetButtonRect.x = offsetResetButtonRect.x + offsetResetButtonRect.width - _resetTool.ResetButtonSize;
-            offsetResetButtonRect.width = _resetTool.ResetButtonSize;
+            offsetResetButtonRect.x = offsetResetButtonRect.x + offsetResetButtonRect.width - ResetTool.ResetButtonSize;
+            offsetResetButtonRect.width = ResetTool.ResetButtonSize;
             EditorGUILayout.EndVertical();
             EditorGUILayout.EndHorizontal();
             
@@ -868,7 +943,7 @@ namespace NBShaderEditor
             Action drawTextureEndChangeCheck = () =>
             {
                 textureProperty.textureValue = texture;
-                _resetTool.CheckHasModifyOnValueChange((label,texturePropertyPack.property.name));
+                ResetTool.CheckOnValueChange((label,texturePropertyPack.property.name));
             };
             EditorGUI.BeginChangeCheck();
             texture = (Texture)EditorGUI.ObjectField(textureRect,texture,typeof(Texture2D));
@@ -876,63 +951,66 @@ namespace NBShaderEditor
             {
                 drawTextureEndChangeCheck();
             }
-            _resetTool.DrawResetModifyButton(textureResetButtonRect,label,texturePropertyPack,resetAction: () =>
+            ResetTool.DrawResetModifyButton(textureResetButtonRect,(label,texturePropertyPack.name),texturePropertyPack,resetAction: () =>
             {
                 texture = null;
             },onValueChangedCallBack:drawTextureEndChangeCheck);
-            _resetTool.EndResetModifyButtonScope();
+            ResetTool.EndResetModifyButtonScope();
 
-            // MaterialProperty tillingOffsetProp = GetProperty(textureProperty.name + "_ST");
-            Vector4 tillingOffset = textureProperty.textureScaleAndOffset;
-            string tillingLabel = "Tilling";
-            var tillingTuple = (tillingLabel, textureProperty.name + "_ST");
-            GUI.Label(tillingRect,tillingLabel);
-            Vector2 tilling = new Vector2(tillingOffset.x, tillingOffset.y);
-            Action drawTillingEndChangeCheck = () =>
+            if (drawScaleOffset)
             {
-                tillingOffset.x = tilling.x;
-                tillingOffset.y = tilling.y;
-                textureProperty.textureScaleAndOffset = tillingOffset;
-                _resetTool.CheckHasModifyOnValueChange(tillingTuple);
+                // MaterialProperty tillingOffsetProp = GetProperty(textureProperty.name + "_ST");
+                Vector4 tillingOffset = textureProperty.textureScaleAndOffset;
+                string tillingLabel = "Tilling";
+                var tillingTuple = (tillingLabel, textureProperty.name + "_ST");
+                GUI.Label(tillingRect,tillingLabel);
+                Vector2 tilling = new Vector2(tillingOffset.x, tillingOffset.y);
+                Action drawTillingEndChangeCheck = () =>
+                {
+                    tillingOffset.x = tilling.x;
+                    tillingOffset.y = tilling.y;
+                    textureProperty.textureScaleAndOffset = tillingOffset;
+                    ResetTool.CheckOnValueChange(tillingTuple);
 
-            };
-            EditorGUI.BeginChangeCheck();
-            tilling = EditorGUI.Vector2Field(tillingVec2Rect, "", tilling);
-            if (EditorGUI.EndChangeCheck())
-            {
-                drawTillingEndChangeCheck();
+                };
+                EditorGUI.BeginChangeCheck();
+                tilling = EditorGUI.Vector2Field(tillingVec2Rect, "", tilling);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    drawTillingEndChangeCheck();
+                }
+                
+                ResetTool.DrawResetModifyButton(tillingResetButtonRect,tillingTuple,texturePropertyPack,resetAction: () =>
+                {
+                    tilling = Vector2.one;
+                },onValueChangedCallBack:drawTillingEndChangeCheck,VectorValeType.Tilling);
+                ResetTool.EndResetModifyButtonScope();
+                
+                string offsetLabel = "Offset";
+                var offsetTuple = (offsetLabel, textureProperty.name + "_ST");
+                GUI.Label(offsetRect,offsetLabel);
+                Vector2 offset = new Vector2(tillingOffset.z, tillingOffset.w);
+                Action drawOffsetEndChangeCheck = () =>
+                {
+                    tillingOffset.z = offset.x;
+                    tillingOffset.w = offset.y;
+                    textureProperty.textureScaleAndOffset = tillingOffset;
+                    ResetTool.CheckOnValueChange(offsetTuple);
+
+                };
+                EditorGUI.BeginChangeCheck();
+                offset = EditorGUI.Vector2Field(offsetVec2Rect, "", offset);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    drawOffsetEndChangeCheck();
+                }
+                
+                ResetTool.DrawResetModifyButton(offsetResetButtonRect,offsetTuple,texturePropertyPack,resetAction: () =>
+                {
+                    offset = Vector2.zero;
+                },onValueChangedCallBack:drawOffsetEndChangeCheck,VectorValeType.Offset);
+                ResetTool.EndResetModifyButtonScope();
             }
-            
-            _resetTool.DrawResetModifyButton(tillingResetButtonRect,tillingTuple,texturePropertyPack,resetAction: () =>
-            {
-                tilling = Vector2.one;
-            },onValueChangedCallBack:drawTillingEndChangeCheck,VectorValeType.Tilling);
-            _resetTool.EndResetModifyButtonScope();
-            
-            string offsetLabel = "Offset";
-            var offsetTuple = (offsetLabel, textureProperty.name + "_ST");
-            GUI.Label(offsetRect,offsetLabel);
-            Vector2 offset = new Vector2(tillingOffset.z, tillingOffset.w);
-            Action drawOffsetEndChangeCheck = () =>
-            {
-                tillingOffset.z = offset.x;
-                tillingOffset.w = offset.y;
-                textureProperty.textureScaleAndOffset = tillingOffset;
-                _resetTool.CheckHasModifyOnValueChange(offsetTuple);
-
-            };
-            EditorGUI.BeginChangeCheck();
-            offset = EditorGUI.Vector2Field(offsetVec2Rect, "", offset);
-            if (EditorGUI.EndChangeCheck())
-            {
-                drawOffsetEndChangeCheck();
-            }
-            
-            _resetTool.DrawResetModifyButton(offsetResetButtonRect,offsetTuple,texturePropertyPack,resetAction: () =>
-            {
-                offset = Vector2.zero;
-            },onValueChangedCallBack:drawOffsetEndChangeCheck,VectorValeType.Offset);
-            _resetTool.EndResetModifyButtonScope();
             return texture;
         }
         bool WrapModeFlagHasMixedValue(int wrapModeFlagBitsName, int flagIndex)
@@ -993,16 +1071,36 @@ namespace NBShaderEditor
 
         public void DrawWrapMode(string texturelabel,int wrapModeFlagBitsName = 0, int flagIndex = 2)
         {
-            EditorGUI.showMixedValue = WrapModeFlagHasMixedValue(wrapModeFlagBitsName, flagIndex);
+            bool hasMixedValue = WrapModeFlagHasMixedValue(wrapModeFlagBitsName, flagIndex);
+            EditorGUI.showMixedValue = hasMixedValue;
+            string wrapLabel = texturelabel + "循环模式";
+            (string, string) wrapNameTuple = (wrapLabel, "");
                 
             int tmpWrapMode = GetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex,shaderFlags[0]);
+            Action onWrapModeEndChangeCheck = () =>
+            {
+                SetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex, tmpWrapMode);
+                hasMixedValue = WrapModeFlagHasMixedValue(wrapModeFlagBitsName, flagIndex);
+                ResetTool.CheckOnValueChange(wrapNameTuple);
+            };
             EditorGUI.BeginChangeCheck();
-            tmpWrapMode = EditorGUILayout.Popup(new GUIContent(texturelabel + "循环模式"), tmpWrapMode,
+            EditorGUILayout.BeginHorizontal();
+            tmpWrapMode = EditorGUILayout.Popup(new GUIContent(wrapLabel), tmpWrapMode,
                 Enum.GetNames(typeof(SamplerWarpMode)));
             if (EditorGUI.EndChangeCheck())
             {
-                SetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex, tmpWrapMode);
+                onWrapModeEndChangeCheck();
             }
+            ResetTool.DrawResetModifyButton(wrapNameTuple,resetCallBack: () =>
+            {
+                tmpWrapMode = 0;
+            },onValueChangedCallBack:onWrapModeEndChangeCheck,() =>
+            {
+                bool hasModified = GetWrapModeFlagValue(wrapModeFlagBitsName, flagIndex,shaderFlags[0]) != 0 ? true : false;
+                return hasModified;
+            }, () => WrapModeFlagHasMixedValue(wrapModeFlagBitsName, flagIndex));
+            EditorGUILayout.EndHorizontal();
+            ResetTool.EndResetModifyButtonScope();
         }
         public void DrawAfterTexture(bool hasTexture, string label, string texturePropertyName,
             bool drawScaleOffset = false, bool drawWrapMode = false, int wrapModeFlagBitsName = 0, int flagIndex = 2,
@@ -1027,7 +1125,7 @@ namespace NBShaderEditor
 
 
         public void DrawPopUp(string label, string propertyName, string[] options, string[] toolTips = null,
-            Action<MaterialProperty> drawBlock = null,Action<MaterialProperty> drawOnValueChangedBlock = null)
+            Action<MaterialProperty> drawBlock = null,Action<MaterialProperty> drawOnValueChangedBlock = null,bool isSharedGlobalParent = false)
         {
             MaterialProperty property = GetProperty(propertyName);
             if (property == null) return;
@@ -1052,7 +1150,7 @@ namespace NBShaderEditor
             {
                 property.floatValue = mode;
                 drawOnValueChangedBlock?.Invoke(property);
-                _resetTool.CheckHasModifyOnValueChange((label,propertyName));
+                ResetTool.CheckOnValueChange((label,propertyName));
             };
 
             EditorGUILayout.BeginHorizontal();
@@ -1061,14 +1159,14 @@ namespace NBShaderEditor
             {
                 drawOnValueChanged.Invoke();
             }
-            _resetTool.DrawResetModifyButton(label,ShaderPropertyPacksDic[propertyName],resetAction: () =>
+            ResetTool.DrawResetModifyButton(new Rect(),(label,propertyName),ShaderPropertyPacksDic[propertyName],resetAction: () =>
             {
                 mode = property.floatValue;
             },onValueChangedCallBack:drawOnValueChanged);
             EditorGUILayout.EndHorizontal();
 
             drawBlock?.Invoke(property);
-            _resetTool.EndResetModifyButtonScope();
+            ResetTool.EndResetModifyButtonScope();
             EditorGUI.showMixedValue = false;
         }
 

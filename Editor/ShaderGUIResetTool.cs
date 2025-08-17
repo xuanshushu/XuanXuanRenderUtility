@@ -65,49 +65,70 @@ namespace NBShaderEditor
             public Action ResetCallBack;
             public Action OnValueChangedCallBack;
             public Func<bool> CheckHasModifyOnValueChange;
+            public Func<bool> CheckHasMixedValueOnValueChange;
             public (string, string) NameTuple;
             public bool HasModified = false;
+            public bool HasMixedValue =false; 
+            public bool ChildHasModified = false;
+            public bool ChildHasMixedValue = false;
+            
 
-            public ResetItem((string, string) nameTuple,Action resetCallBack,Action onValueChangedCallBack,Func<bool> checkHasModifyOnValueChange)
+            public void Init((string, string) nameTuple,Action resetCallBack,Action onValueChangedCallBack,Func<bool> checkHasModifyOnValueChange,Func<bool> checkHasMixedValueOnValueChange)
             {
                 NameTuple = nameTuple;
                 ResetCallBack = resetCallBack;
                 OnValueChangedCallBack = onValueChangedCallBack;
                 CheckHasModifyOnValueChange = checkHasModifyOnValueChange;
+                CheckHasMixedValueOnValueChange = checkHasMixedValueOnValueChange;
             }
 
-            public void Execute()
+            public void Execute(bool isParentCall = false)
             {
                 ResetCallBack?.Invoke();
                 OnValueChangedCallBack?.Invoke();
+                HasModified = CheckHasModifyOnValueChange();
+                HasMixedValue = CheckHasMixedValueOnValueChange();
+                CheckOnValueChange(isParentCall);
+                foreach (var item in ChildResetItems)
+                {
+                    item.Execute(true);
+                }
+            }
+            
+
+            public void CheckOnValueChange(bool isParentCall = false)
+            {
+                HasModified = CheckHasModifyOnValueChange();
+                HasMixedValue = CheckHasMixedValueOnValueChange();
                 foreach (var childItem in ChildResetItems)
                 {
-                    childItem.Execute();
+                    HasMixedValue |= childItem.HasMixedValue;
+                    HasModified |= childItem.HasModified;
+                }
+
+                if (!isParentCall && Parent != null)
+                {
+                    Parent.CheckOnValueChange();
                 }
             }
         }
 
-        public void CheckHasModifyOnValueChange((string,string) nameTuple)
+        public void CheckOnValueChange((string,string) nameTuple)
         {
             var resetItem = ResetItemDict[nameTuple];
             if (resetItem != null)
             {
-               resetItem.HasModified = resetItem.CheckHasModifyOnValueChange();
+                resetItem.CheckOnValueChange();
             }
         }
 
-        public void DrawResetModifyButton(string label, ShaderPropertyPack pack, Action resetAction = null,
-            Action onValueChangedCallBack = null)
+        public void DrawResetModifyButton((string, string) nameTuple, Action resetCallBack,
+            Action onValueChangedCallBack,Func<bool> checkHasModifyOnValueChange,Func<bool> checkHasMixedValueOnValueChange,bool isSharedGlobalParent = false)
         {
-            DrawResetModifyButton(new Rect(),label,pack,resetAction,onValueChangedCallBack);
+            ConstructResetItem(nameTuple,resetCallBack,onValueChangedCallBack,checkHasModifyOnValueChange,checkHasMixedValueOnValueChange,isSharedGlobalParent);
+            DrawResetModifyButtonFinal(new Rect(),nameTuple);
         }
-
-        public void DrawResetModifyButton(Rect rect, string label, ShaderPropertyPack pack, Action resetAction = null,
-            Action onValueChangedCallBack = null, VectorValeType vectorValeType = VectorValeType.Undefine)
-        {
-            DrawResetModifyButton(rect, (label,pack.property.name), pack, resetAction, onValueChangedCallBack, vectorValeType);
-        }
-        public void DrawResetModifyButton(Rect rect,(string,string)nameTuple,ShaderPropertyPack pack, Action resetAction = null,Action onValueChangedCallBack = null,VectorValeType vectorValeType = VectorValeType.Undefine)
+        public void DrawResetModifyButton(Rect rect,(string,string)nameTuple,ShaderPropertyPack pack, Action resetAction,Action onValueChangedCallBack,VectorValeType vectorValeType = VectorValeType.Undefine,bool isSharedGlobalParent = false)
         {
             
             // (string, string) nameTuple = (label, pack.property.name);
@@ -115,60 +136,50 @@ namespace NBShaderEditor
                 resetAction: ()=>{
                     SetPropertyToDefaultValue(pack,vectorValeType); 
                     resetAction?.Invoke();
-                },onValueChangedCallBack:()=>
-                {
-                    onValueChangedCallBack?.Invoke();//这个里面必须要写CheckHasModifyOnValueChange。因为不在Reset的时候，属性值本身变化的时候也要看看修改了没。
-                },
-                checkHasModifyOnValueChange: () => IsPropertyModified(pack,vectorValeType)
-                );
+                },onValueChangedCallBack:onValueChangedCallBack,
+                checkHasModifyOnValueChange: () => IsPropertyModified(pack,vectorValeType),
+                checkHasMixedValueOnValueChange: () =>  pack.property.hasMixedValue,
+                isSharedGlobalParent: isSharedGlobalParent
+            );
             if (ResetItemDict.ContainsKey(nameTuple))
             {
-                ResetItem item = ResetItemDict[nameTuple];
-                DrawResetModifyButton(rect,item.HasModified, pack.property.hasMixedValue, () =>
-                {
-                    item.Execute();
-                });
+                DrawResetModifyButtonFinal(rect,nameTuple);
             }
         }
 
         public void DrawResetModifyButton(string label)
         {
-            ConstructResetItem((label, ""));
-            ResetItem thisItem = ResetItemDict[(label, "")];
-            if (_isInitResetData)
-            {
-                thisItem.CheckHasModifyOnValueChange = () =>
-                {
-                    foreach (var item in thisItem.ChildResetItems)
-                    {
-                        if (item.HasModified) return true;
-                    }
-                    return false;
-                };
-            }
-
-            thisItem.HasModified = thisItem.CheckHasModifyOnValueChange();
-            DrawResetModifyButton(new Rect(),thisItem.HasModified,false,thisItem.Execute);
+            //大部分功能都是触发子类
+            ConstructResetItem((label, ""), resetAction: () => { },onValueChangedCallBack: () => { }, () => false, () => false);
+            DrawResetModifyButtonFinal(new Rect(),(label,""));
         }
         
-
-        public void ConstructResetItem((string,string) nameTuple, Action resetAction = null,
-            Action onValueChangedCallBack = null,Func<bool> checkHasModifyOnValueChange = null)
+        //isSharedGlobalParent==>有些组件是公用的，比如极坐标一类。这些是不会设置父Item的。
+        public void ConstructResetItem((string,string) nameTuple, Action resetAction,
+            Action onValueChangedCallBack,Func<bool> checkHasModifyOnValueChange,Func<bool> checkHasMixedValueOnValueChange,bool isSharedGlobalParent = false)
         {
             if(!_isInitResetData) return;
-            ResetItem item = new ResetItem(nameTuple,resetAction,onValueChangedCallBack,checkHasModifyOnValueChange);
-            if (checkHasModifyOnValueChange != null)
+            if (!ResetItemDict.ContainsKey(nameTuple))
             {
+                ResetItem item = new ResetItem();
+                item.Init(nameTuple,resetAction,onValueChangedCallBack,checkHasModifyOnValueChange,checkHasMixedValueOnValueChange);
                 item.HasModified = checkHasModifyOnValueChange.Invoke();//初始化参数
+                item.HasMixedValue = checkHasMixedValueOnValueChange.Invoke();//初始化参数
+                
+                ResetItemDict.Add(nameTuple,item);
+                if (_scopeContextStack.Count > 0 && !isSharedGlobalParent)
+                {
+                    var contextNameTuple = _scopeContextStack.Peek();
+                    ResetItem parentItem = ResetItemDict[contextNameTuple];
+                    parentItem.ChildResetItems.Add(item);
+                    item.Parent = parentItem;
+                }
             }
-            ResetItemDict.Add(nameTuple,item);
-            if (_scopeContextStack.Count > 0)
+            else
             {
-                var contextNameTuple = _scopeContextStack.Peek();
-                ResetItem parentItem = ResetItemDict[contextNameTuple];
-                parentItem.ChildResetItems.Add(item);
-                item.Parent = parentItem;
+                // Debug.LogError("ResetItem已经存在:"+nameTuple.ToString());
             }
+            //就算是已经ContainsKey了，也Push和Pop一下。没有作用，但让写法更简单。
             _scopeContextStack.Push(nameTuple);
         }
         
@@ -184,15 +195,23 @@ namespace NBShaderEditor
 
         private GUIContent resetIconContent = new GUIContent();
         //仅仅只是Drawer
-        private void DrawResetModifyButton(Rect position,bool hasModified, bool hasMixedValue,Action onResetButton)
+        private void DrawResetModifyButtonFinal(Rect position, (string, string) nameTuple)
         {
+            ResetItem item;
             // GUILayout.FlexibleSpace();
-
+            if (ResetItemDict.ContainsKey(nameTuple))
+            {
+                item = ResetItemDict[nameTuple];
+            }
+            else
+            {
+                return;
+            }
             float btnSize = ResetButtonSize;
             string iconText;
             bool isDisabled = true;
             GUIStyle iconStyle;
-            if (hasModified || hasMixedValue)
+            if (item.HasModified || item.HasMixedValue)
             {
                 isDisabled = false;
                 iconText = "R";
@@ -215,8 +234,7 @@ namespace NBShaderEditor
             }
             if(GUI.Button(position,resetIconContent,iconStyle))
             {
-                
-                onResetButton?.Invoke();
+                item.Execute();
             }
             EditorGUI.EndDisabledGroup();
         }
