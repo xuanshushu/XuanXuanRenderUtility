@@ -11,7 +11,7 @@ namespace NBShaderEditor
     {
         private ShaderGUIHelper _helper;
         private Shader _shader;
-        private bool _isInitResetData = false;
+        public bool IsInitResetData = false;
         
         private Stack<(string,string)> _scopeContextStack = new Stack<(string,string)>();
 
@@ -26,14 +26,14 @@ namespace NBShaderEditor
         {
             _helper = helper;
             _shader = helper.shader;
-            _isInitResetData = true;
+            IsInitResetData = true;
             ResetItemDict.Clear();
             _scopeContextStack.Clear();
         }
 
         public void EndInit()
         {
-            _isInitResetData = false;
+            IsInitResetData = false;
         }
 
         public void Update()
@@ -122,11 +122,11 @@ namespace NBShaderEditor
             }
         }
 
-        public void DrawResetModifyButton((string, string) nameTuple, Action resetCallBack,
+        public void DrawResetModifyButton(Rect rect,(string, string) nameTuple, Action resetCallBack,
             Action onValueChangedCallBack,Func<bool> checkHasModifyOnValueChange,Func<bool> checkHasMixedValueOnValueChange,bool isSharedGlobalParent = false)
         {
             ConstructResetItem(nameTuple,resetCallBack,onValueChangedCallBack,checkHasModifyOnValueChange,checkHasMixedValueOnValueChange,isSharedGlobalParent);
-            DrawResetModifyButtonFinal(new Rect(),nameTuple);
+            DrawResetModifyButtonFinal(rect,nameTuple);
         }
         public void DrawResetModifyButton(Rect rect,(string,string)nameTuple,ShaderPropertyPack pack, Action resetAction,Action onValueChangedCallBack,VectorValeType vectorValeType = VectorValeType.Undefine,bool isSharedGlobalParent = false)
         {
@@ -147,18 +147,18 @@ namespace NBShaderEditor
             }
         }
 
-        public void DrawResetModifyButton(string label)
+        public void DrawResetModifyButton(Rect rect, string label)
         {
             //大部分功能都是触发子类
             ConstructResetItem((label, ""), resetAction: () => { },onValueChangedCallBack: () => { }, () => false, () => false);
-            DrawResetModifyButtonFinal(new Rect(),(label,""));
+            DrawResetModifyButtonFinal(rect,(label,""));
         }
         
         //isSharedGlobalParent==>有些组件是公用的，比如极坐标一类。这些是不会设置父Item的。
         public void ConstructResetItem((string,string) nameTuple, Action resetAction,
             Action onValueChangedCallBack,Func<bool> checkHasModifyOnValueChange,Func<bool> checkHasMixedValueOnValueChange,bool isSharedGlobalParent = false)
         {
-            if(!_isInitResetData) return;
+            if(!IsInitResetData) return;
             if (!ResetItemDict.ContainsKey(nameTuple))
             {
                 ResetItem item = new ResetItem();
@@ -186,7 +186,7 @@ namespace NBShaderEditor
         
         public void EndResetModifyButtonScope()
         {
-            if(!_isInitResetData) return;
+            if(!IsInitResetData) return;
             if(_scopeContextStack.Count == 0) return;
             _scopeContextStack.Pop();
         }
@@ -229,7 +229,7 @@ namespace NBShaderEditor
             // if (GUILayout.Button(iconTexture, GUILayout.Width(btnSize), GUILayout.Height(btnSize)))
             if (position.width <= 0)
             {
-                position = GUILayoutUtility.GetRect(resetIconContent, iconStyle, GUILayout.Width(btnSize),
+                position = GUILayoutUtility.GetRect(resetIconContent, GUI.skin.button, GUILayout.Width(btnSize),
                     GUILayout.Height(btnSize));
             }
             if(GUI.Button(position,resetIconContent,iconStyle))

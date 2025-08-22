@@ -41,13 +41,15 @@ namespace NBShaderEditor
             public int index;
         }
 
-        private List<Material> mats;
-        private MaterialEditor matEditor;
+        public List<Material> mats;
+        public MaterialEditor matEditor;
         public Shader shader;
         // public List<ShaderPropertyPack> ShaderPropertyPacks = new List<ShaderPropertyPack>();
         public Dictionary<string, ShaderPropertyPack> ShaderPropertyPacksDic =
             new Dictionary<string, ShaderPropertyPack>();
         public ShaderFlagsBase[] shaderFlags = null;
+
+        public bool isClearUnUsedTexture = false;
 
         public void Init(MaterialEditor materialEditor, MaterialProperty[] properties,
             ShaderFlagsBase[] shaderFlags_in = null, List<Material> mats_in = null)
@@ -105,7 +107,9 @@ namespace NBShaderEditor
                 ResetTool.EndInit();
                 ResetTool.Update();
             }
-            
+
+            isClearUnUsedTexture = false;
+
         }
   
         private ShaderGUIToolBar _toolBar;
@@ -209,7 +213,11 @@ namespace NBShaderEditor
             EditorGUILayout.BeginHorizontal();
             var rect = EditorGUILayout.GetControlRect();
             var foldoutRect = new Rect(rect.x, rect.y, rect.width, rect.height);
+            foldoutRect.width -= 2 * ResetTool.ResetButtonSize;
             var labelRect = new Rect(rect.x + 2f, rect.y, rect.width - 2f, rect.height);
+            var resetRect = rect;
+            resetRect.x = rect.x + rect.width - ResetTool.ResetButtonSize-3f;
+            resetRect.width = ResetTool.ResetButtonSize;
             
             animBool.target = EditorGUI.Foldout(foldoutRect, animBool.target, string.Empty, true);
             
@@ -218,7 +226,7 @@ namespace NBShaderEditor
             EditorGUI.LabelField(labelRect, label);
             EditorStyles.label.fontStyle = origFontStyle;
             
-            ResetTool.DrawResetModifyButton(label);
+            ResetTool.DrawResetModifyButton(resetRect,label);
             EditorGUILayout.EndHorizontal();
             
             float faded = animBool.faded;
@@ -590,7 +598,7 @@ namespace NBShaderEditor
             }
             EditorGUI.showMixedValue = false;
             
-            ResetTool.DrawResetModifyButton(nameTuple,
+            ResetTool.DrawResetModifyButton(new Rect(),nameTuple,
                 resetCallBack:()=>
                 {
                     vec2 = GetVecInTwoLineDefaultValue(propertyName, isFirstLine);
@@ -741,7 +749,7 @@ namespace NBShaderEditor
                 floatVecEndChangeCheck();
             }
             
-            ResetTool.DrawResetModifyButton(nameTuple,
+            ResetTool.DrawResetModifyButton(new Rect(),nameTuple,
                 resetCallBack:()=>
                 {
                     f = GetCompDefaultValueInVec4(propertyName, channel);
@@ -869,7 +877,7 @@ namespace NBShaderEditor
             EditorGUILayout.BeginFadeGroup(faded);
             EditorGUI.BeginDisabledGroup(texture == null);
 
-            DrawAfterTexture(true, label, texturePropertyName, false, drawWrapMode, wrapModeFlagBitsName, flagIndex,
+            DrawAfterTexture(true, label, texturePropertyName, drawWrapMode, wrapModeFlagBitsName, flagIndex,
                 drawBlock);
 
             EditorGUI.EndDisabledGroup();
@@ -882,22 +890,23 @@ namespace NBShaderEditor
         {
             bool hasTexture = mats[0].GetTexture(texturePropertyName) != null;
             Texture texture = TextureProperty(GetProperty(texturePropertyName), label, drawScaleOffset);
-            // matEditor.TextureProperty(GetProperty(texturePropertyName),label,drawScaleOffset);
             if (colorPropertyName != null)
             {
-                // Rect colorRect = EditorGUILayout.GetControlRect();
-                // matEditor.ColorProperty(colorRect,GetProperty(colorPropertyName), "");
                 ColorProperty("",colorPropertyName,true);
-                
             }
                 
-            DrawAfterTexture(hasTexture, label, texturePropertyName, false, drawWrapMode, wrapModeFlagBitsName,
+            DrawAfterTexture(hasTexture, label, texturePropertyName, drawWrapMode, wrapModeFlagBitsName,
                 flagIndex, drawBlock);
         }
         
         Texture TextureProperty(MaterialProperty textureProperty, string label, bool drawScaleOffset)
         {
             ShaderPropertyPack texturePropertyPack = ShaderPropertyPacksDic[textureProperty.name];
+            if (!GUI.enabled && isClearUnUsedTexture&&textureProperty.textureValue)
+            {
+                Debug.Log("清除掉贴图："+textureProperty.name,textureProperty.textureValue);
+                texturePropertyPack.property.textureValue = null;
+            }
             float indentWidth = 15f;
             float currentIndentWidth = EditorGUI.indentLevel * indentWidth;
             float singleLineHeight = EditorGUIUtility.singleLineHeight;
@@ -959,59 +968,105 @@ namespace NBShaderEditor
 
             if (drawScaleOffset)
             {
-                // MaterialProperty tillingOffsetProp = GetProperty(textureProperty.name + "_ST");
-                Vector4 tillingOffset = textureProperty.textureScaleAndOffset;
-                string tillingLabel = "Tilling";
-                var tillingTuple = (tillingLabel, textureProperty.name + "_ST");
-                GUI.Label(tillingRect,tillingLabel);
-                Vector2 tilling = new Vector2(tillingOffset.x, tillingOffset.y);
-                Action drawTillingEndChangeCheck = () =>
-                {
-                    tillingOffset.x = tilling.x;
-                    tillingOffset.y = tilling.y;
-                    textureProperty.textureScaleAndOffset = tillingOffset;
-                    ResetTool.CheckOnValueChange(tillingTuple);
-
-                };
-                EditorGUI.BeginChangeCheck();
-                tilling = EditorGUI.Vector2Field(tillingVec2Rect, "", tilling);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    drawTillingEndChangeCheck();
-                }
-                
-                ResetTool.DrawResetModifyButton(tillingResetButtonRect,tillingTuple,texturePropertyPack,resetAction: () =>
-                {
-                    tilling = Vector2.one;
-                },onValueChangedCallBack:drawTillingEndChangeCheck,VectorValeType.Tilling);
-                ResetTool.EndResetModifyButtonScope();
-                
-                string offsetLabel = "Offset";
-                var offsetTuple = (offsetLabel, textureProperty.name + "_ST");
-                GUI.Label(offsetRect,offsetLabel);
-                Vector2 offset = new Vector2(tillingOffset.z, tillingOffset.w);
-                Action drawOffsetEndChangeCheck = () =>
-                {
-                    tillingOffset.z = offset.x;
-                    tillingOffset.w = offset.y;
-                    textureProperty.textureScaleAndOffset = tillingOffset;
-                    ResetTool.CheckOnValueChange(offsetTuple);
-
-                };
-                EditorGUI.BeginChangeCheck();
-                offset = EditorGUI.Vector2Field(offsetVec2Rect, "", offset);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    drawOffsetEndChangeCheck();
-                }
-                
-                ResetTool.DrawResetModifyButton(offsetResetButtonRect,offsetTuple,texturePropertyPack,resetAction: () =>
-                {
-                    offset = Vector2.zero;
-                },onValueChangedCallBack:drawOffsetEndChangeCheck,VectorValeType.Offset);
-                ResetTool.EndResetModifyButtonScope();
+                DrawScaleOffset(texturePropertyPack, tillingRect, tillingVec2Rect, tillingResetButtonRect, offsetRect,
+                    offsetVec2Rect, offsetResetButtonRect);
             }
             return texture;
+        }
+
+        static float indent => (float) EditorGUI.indentLevel * 15f;
+        public void TextureScaleOffsetProperty(string texturePropertyName)
+        {
+            ShaderPropertyPack texturePropertyPack = ShaderPropertyPacksDic[texturePropertyName];
+            // EditorGUILayout.BeginHorizontal();
+            Rect tillingRect = EditorGUILayout.GetControlRect();
+            // EditorGUILayout.EndHorizontal();
+            Rect tillingLabelRect  = new Rect(tillingRect.x + indent, tillingRect.y, EditorGUIUtility.labelWidth - indent, tillingRect.height);
+            tillingLabelRect.width = EditorGUIUtility.labelWidth;
+            Rect tillingVec2Rect = tillingRect;
+            tillingVec2Rect.x += tillingLabelRect.width;
+            tillingVec2Rect.x -= indent;
+            tillingVec2Rect.width -= 3f;
+            tillingVec2Rect.width -= tillingLabelRect.width;
+            tillingVec2Rect.width += indent;
+            tillingVec2Rect.width -= ResetTool.ResetButtonSize;
+            Rect tillingResetButtonRect = tillingRect;
+            tillingResetButtonRect.x = tillingResetButtonRect.x + tillingResetButtonRect.width - ResetTool.ResetButtonSize;
+            tillingResetButtonRect.width = ResetTool.ResetButtonSize;
+            
+          
+            Rect offsetRect = EditorGUILayout.GetControlRect();
+            Rect offsetLabelRect  = new Rect(offsetRect.x + indent, offsetRect.y, EditorGUIUtility.labelWidth - indent, offsetRect.height);
+            offsetLabelRect.width = EditorGUIUtility.labelWidth;
+            Rect offsetVec2Rect = offsetRect;
+            offsetVec2Rect.x += offsetLabelRect.width;
+            offsetVec2Rect.x -= indent;
+            offsetVec2Rect.width -= 3f;
+            offsetVec2Rect.width -= offsetLabelRect.width;
+            offsetVec2Rect.width += indent;
+            offsetVec2Rect.width -= ResetTool.ResetButtonSize;
+            Rect offsetResetButtonRect = offsetRect;
+            offsetResetButtonRect.x = offsetResetButtonRect.x + offsetResetButtonRect.width - ResetTool.ResetButtonSize;
+            offsetResetButtonRect.width = ResetTool.ResetButtonSize;
+            
+            DrawScaleOffset(texturePropertyPack,tillingLabelRect,tillingVec2Rect,tillingResetButtonRect,offsetLabelRect,offsetVec2Rect,offsetResetButtonRect);
+
+        }
+
+        public void DrawScaleOffset(ShaderPropertyPack texturePropertyPack, Rect tillingRect, Rect tillingVec2Rect,
+            Rect tillingResetButtonRect, Rect offsetRect, Rect offsetVec2Rect, Rect offsetResetButtonRect)
+        {
+            MaterialProperty textureProperty = texturePropertyPack.property;
+            Vector4 tillingOffset = textureProperty.textureScaleAndOffset;
+            string tillingLabel = "Tilling";
+            var tillingTuple = (tillingLabel, textureProperty.name + "_ST");
+            GUI.Label(tillingRect,tillingLabel);
+            Vector2 tilling = new Vector2(tillingOffset.x, tillingOffset.y);
+            Action drawTillingEndChangeCheck = () =>
+            {
+                tillingOffset.x = tilling.x;
+                tillingOffset.y = tilling.y;
+                textureProperty.textureScaleAndOffset = tillingOffset;
+                ResetTool.CheckOnValueChange(tillingTuple);
+
+            };
+            EditorGUI.BeginChangeCheck();
+            tilling = EditorGUI.Vector2Field(tillingVec2Rect, "", tilling);
+            if (EditorGUI.EndChangeCheck())
+            {
+                drawTillingEndChangeCheck();
+            }
+            
+            ResetTool.DrawResetModifyButton(tillingResetButtonRect,tillingTuple,texturePropertyPack,resetAction: () =>
+            {
+                tilling = Vector2.one;
+            },onValueChangedCallBack:drawTillingEndChangeCheck,VectorValeType.Tilling);
+            ResetTool.EndResetModifyButtonScope();
+            
+            string offsetLabel = "Offset";
+            var offsetTuple = (offsetLabel, textureProperty.name + "_ST");
+            GUI.Label(offsetRect,offsetLabel);
+            Vector2 offset = new Vector2(tillingOffset.z, tillingOffset.w);
+            Action drawOffsetEndChangeCheck = () =>
+            {
+                tillingOffset.z = offset.x;
+                tillingOffset.w = offset.y;
+                textureProperty.textureScaleAndOffset = tillingOffset;
+                ResetTool.CheckOnValueChange(offsetTuple);
+
+            };
+            EditorGUI.BeginChangeCheck();
+            offset = EditorGUI.Vector2Field(offsetVec2Rect, "", offset);
+            if (EditorGUI.EndChangeCheck())
+            {
+                drawOffsetEndChangeCheck();
+            }
+            
+            ResetTool.DrawResetModifyButton(offsetResetButtonRect,offsetTuple,texturePropertyPack,resetAction: () =>
+            {
+                offset = Vector2.zero;
+            },onValueChangedCallBack:drawOffsetEndChangeCheck,VectorValeType.Offset);
+            ResetTool.EndResetModifyButtonScope();
         }
         bool WrapModeFlagHasMixedValue(int wrapModeFlagBitsName, int flagIndex)
         {
@@ -1091,7 +1146,7 @@ namespace NBShaderEditor
             {
                 onWrapModeEndChangeCheck();
             }
-            ResetTool.DrawResetModifyButton(wrapNameTuple,resetCallBack: () =>
+            ResetTool.DrawResetModifyButton(new Rect(),wrapNameTuple,resetCallBack: () =>
             {
                 tmpWrapMode = 0;
             },onValueChangedCallBack:onWrapModeEndChangeCheck,() =>
@@ -1102,8 +1157,7 @@ namespace NBShaderEditor
             EditorGUILayout.EndHorizontal();
             ResetTool.EndResetModifyButtonScope();
         }
-        public void DrawAfterTexture(bool hasTexture, string label, string texturePropertyName,
-            bool drawScaleOffset = false, bool drawWrapMode = false, int wrapModeFlagBitsName = 0, int flagIndex = 2,
+        public void DrawAfterTexture(bool hasTexture, string label, string texturePropertyName, bool drawWrapMode = false, int wrapModeFlagBitsName = 0, int flagIndex = 2,
             Action<MaterialProperty> drawBlock = null)
         {
             EditorGUI.indentLevel++;
@@ -1111,11 +1165,6 @@ namespace NBShaderEditor
             if (drawWrapMode)
             {
                 DrawWrapMode(label, wrapModeFlagBitsName,flagIndex);
-            }
-
-            if (drawScaleOffset)
-            {
-                matEditor.TextureScaleOffsetProperty(GetProperty(texturePropertyName));
             }
 
             drawBlock?.Invoke(GetProperty(texturePropertyName));
@@ -1278,11 +1327,150 @@ namespace NBShaderEditor
             isUpateGradientPickerCache = true;
         }
         Dictionary<Gradient,bool> gradientsUpdateDic = new Dictionary<Gradient,bool>();
+
+        void GetGradientKeyCount(MaterialProperty countProperty,
+            MaterialProperty[] colorProperties, MaterialProperty[] alphaProperties,out int countPropertyIntValue,out int colorKeysCount,out int alphaKeysCount)
+        {
+
+            countPropertyIntValue = countProperty.intValue;
+            if (colorProperties != null && alphaProperties != null)
+            {
+                colorKeysCount = countPropertyIntValue & 0xFFFF;
+                alphaKeysCount = countPropertyIntValue >> 16;
+            }
+            else
+            {
+                colorKeysCount = countPropertyIntValue;
+                alphaKeysCount = 2;
+            }
+        }
+        bool GradientPropertyHasMixedValue(MaterialProperty countProperty,
+            MaterialProperty[] colorProperties = null, MaterialProperty[] alphaProperties = null)
+        {
+          
+            
+            GetGradientKeyCount(countProperty, colorProperties, alphaProperties,out int countPropertyIntValue, out int colorKeysCount,out int alphaKeysCount);
+            
+            bool hasMixedValue = false;
+            hasMixedValue |= countProperty.hasMixedValue;
+            if (colorProperties != null)
+            {
+                for(int i = 0; i < colorKeysCount; i++)
+                {
+                    hasMixedValue |= colorProperties[i].hasMixedValue;
+                }
+            }
+            if (alphaProperties != null)
+            {
+                for (int i = 0; i < Mathf.CeilToInt(alphaKeysCount/2f); i++)
+                {
+                    hasMixedValue |= alphaProperties[i].hasMixedValue;
+                }
+            }
+            return hasMixedValue;
+
+            
+        }
+
+        void GetGradientConditionBool(MaterialProperty[] colorProperties,
+            MaterialProperty[] alphaProperties, out bool isBlackAndWhiteGradient,
+            out bool isNoAlphaColorGradient)
+        {
+            isBlackAndWhiteGradient = colorProperties == null && alphaProperties != null;
+            isNoAlphaColorGradient =  colorProperties != null && alphaProperties == null;
+        }
+
+        void SetGradientByProperty(Gradient gradient, MaterialProperty countProperty,
+            MaterialProperty[] colorProperties = null, MaterialProperty[] alphaProperties = null)
+        {
+            GetGradientConditionBool(colorProperties,alphaProperties,out bool isBlackAndWhiteGradient,out bool isNoAlphaColorGradient);
+            GetGradientKeyCount(countProperty, colorProperties, alphaProperties,out int countPropertyIntValue, out int colorKeysCount,out int alphaKeysCount);
+            
+            if (colorProperties != null || isBlackAndWhiteGradient)
+            {
+                GradientColorKey[] colorKeys;
+                if (gradient.colorKeys.Length != colorKeysCount)
+                {
+                    colorKeys = new GradientColorKey[colorKeysCount];
+                }
+                else
+                {
+                    colorKeys = gradient.colorKeys;
+                }
+                for (int i = 0; i < colorKeysCount; i++)
+                {
+                    if (isBlackAndWhiteGradient)
+                    {
+                        Vector4 vec = alphaProperties[i / 2].vectorValue;
+                        Color c = Color.white;
+                        if (i % 2 == 0)
+                        {
+                            c.r = vec.x;
+                            c.g = vec.x;
+                            c.b = vec.x;
+                        }
+                        else
+                        {
+                            c.r = vec.z;
+                            c.g = vec.z;
+                            c.b = vec.z;
+                        }
+                        // Debug.Log(i);
+                        // Debug.Log(c);
+                        colorKeys[i].color = c;
+                        colorKeys[i].time = i % 2 == 0 ? vec.y : vec.w;
+                    }
+                    else
+                    {
+                        Color c = colorProperties[i].colorValue; 
+                        colorKeys[i].color = c;
+                        colorKeys[i].time = c.a;
+                    }
+                }
+                gradient.colorKeys = colorKeys;
+            }
+      
+            if (isBlackAndWhiteGradient || isNoAlphaColorGradient || alphaProperties == null)
+            {
+                gradient.alphaKeys = defaultGradientAlphaKey;
+            }
+            else
+            {
+
+                GradientAlphaKey[] alphaKeys;
+                if (gradient.alphaKeys.Length != alphaKeysCount)
+                {
+                    alphaKeys = new GradientAlphaKey[alphaKeysCount];
+                }
+                else
+                {
+                    alphaKeys = gradient.alphaKeys;
+                }
+
+                for (int i = 0; i < alphaKeysCount ; i++)
+                {
+                    Vector4 vec = alphaProperties[i / 2].vectorValue;
+                    if (i % 2 == 0)
+                    {
+                        alphaKeys[i].alpha = vec.x;
+                        alphaKeys[i].time = vec.y;
+                    }
+                    else
+                    {
+                        alphaKeys[i].alpha = vec.z;
+                        alphaKeys[i].time = vec.w;
+                    }
+                }
+                gradient.alphaKeys = alphaKeys;
+                
+            }
+        }
         //如果是黑白Gradient，则取Gradient的颜色的黑白值（这样在面板上可视化比较好）
         //如果既有颜色，也有Alpha。则在CountProperty上采取前16位和后16位编码。
         //原则：gradient对象只是一个操作中介。取值应该直接在MatProperty上去，Set值也应该在验证合法后才能Set，不合法应该提出警告。
-        public void DrawGradient(ref Gradient gradient,bool hdr,ColorSpace colorSpace,string label,int maxCount,string countPropertyName,MaterialProperty[] colorProperties = null,MaterialProperty[] alphaProperties = null)
+        public void DrawGradient(Gradient gradient,bool hdr,ColorSpace colorSpace,string label,int maxCount,string countPropertyName,MaterialProperty[] colorProperties = null,MaterialProperty[] alphaProperties = null)
         {
+            (string,string) nameTuple = (label, countPropertyName);
             if (isUpateGradientPickerCache)
             {
                 foreach (var keys in gradientsUpdateDic.Keys.ToList())
@@ -1298,44 +1486,12 @@ namespace NBShaderEditor
             // var labelRect = new Rect(rect.x + 2f, rect.y, rect.width - 2f, rect.height);
             // EditorGUI.LabelField(labelRect,label);
             var gradientRect = rect;
+            gradientRect.width -= ResetTool.ResetButtonSize;
+            gradientRect.width -= 2f;
+            var gradientResetButtonRect = rect;
+            gradientResetButtonRect.x = gradientResetButtonRect.x + gradientResetButtonRect.width - ResetTool.ResetButtonSize;
+            gradientResetButtonRect.width = ResetTool.ResetButtonSize;
             
-            bool hasMixedValue = false;
-            hasMixedValue |= countProperty.hasMixedValue;
-
-            bool isBlackAndWhiteGradient = colorProperties == null && alphaProperties != null;
-            bool isNoAlphaColorGradient =  colorProperties != null && alphaProperties == null;
-            
-            int colorKeysCount;
-            int alphaKeysCount;
-
-            int countPropertyIntValue = countProperty.intValue;
-            if (colorProperties != null && alphaProperties != null)
-            {
-                colorKeysCount = countPropertyIntValue & 0xFFFF;
-                alphaKeysCount = countPropertyIntValue >> 16;
-            }
-            else
-            {
-                colorKeysCount = countPropertyIntValue;
-                alphaKeysCount = 2;
-            }
-            
-            
-            if (colorProperties != null)
-            {
-                for(int i = 0; i < colorKeysCount; i++)
-                {
-                    hasMixedValue |= colorProperties[i].hasMixedValue;
-                }
-            }
-            if (alphaProperties != null)
-            {
-                for (int i = 0; i < Mathf.CeilToInt(alphaKeysCount/2f); i++)
-                {
-                    hasMixedValue |= alphaProperties[i].hasMixedValue;
-                }
-            }
-
             
             if (gradient == null||gradientsUpdateDic[gradient])
             {
@@ -1347,98 +1503,20 @@ namespace NBShaderEditor
                 }
 
                 gradientsUpdateDic[gradient] = false;
-                
-                if (colorProperties != null || isBlackAndWhiteGradient)
-                {
-                    GradientColorKey[] colorKeys;
-                    if (gradient.colorKeys.Length != colorKeysCount)
-                    {
-                        colorKeys = new GradientColorKey[colorKeysCount];
-                    }
-                    else
-                    {
-                        colorKeys = gradient.colorKeys;
-                    }
-                    for (int i = 0; i < colorKeysCount; i++)
-                    {
-                        if (isBlackAndWhiteGradient)
-                        {
-                            Vector4 vec = alphaProperties[i / 2].vectorValue;
-                            Color c = Color.white;
-                            if (i % 2 == 0)
-                            {
-                                c.r = vec.x;
-                                c.g = vec.x;
-                                c.b = vec.x;
-                            }
-                            else
-                            {
-                                c.r = vec.z;
-                                c.g = vec.z;
-                                c.b = vec.z;
-                            }
-                            // Debug.Log(i);
-                            // Debug.Log(c);
-                            colorKeys[i].color = c;
-                            colorKeys[i].time = i % 2 == 0 ? vec.y : vec.w;
-                        }
-                        else
-                        {
-                            Color c = colorProperties[i].colorValue; 
-                            colorKeys[i].color = c;
-                            colorKeys[i].time = c.a;
-                        }
-                    }
-                    gradient.colorKeys = colorKeys;
-                }
-          
-                if (isBlackAndWhiteGradient || isNoAlphaColorGradient || alphaProperties == null)
-                {
-                    gradient.alphaKeys = defaultGradientAlphaKey;
-                }
-                else
-                {
-
-                    GradientAlphaKey[] alphaKeys;
-                    if (gradient.alphaKeys.Length != alphaKeysCount)
-                    {
-                        alphaKeys = new GradientAlphaKey[alphaKeysCount];
-                    }
-                    else
-                    {
-                        alphaKeys = gradient.alphaKeys;
-                    }
-
-                    for (int i = 0; i < alphaKeysCount ; i++)
-                    {
-                        Vector4 vec = alphaProperties[i / 2].vectorValue;
-                        if (i % 2 == 0)
-                        {
-                            alphaKeys[i].alpha = vec.x;
-                            alphaKeys[i].time = vec.y;
-                        }
-                        else
-                        {
-                            alphaKeys[i].alpha = vec.z;
-                            alphaKeys[i].time = vec.w;
-                        }
-                    }
-                    gradient.alphaKeys = alphaKeys;
-                    
-                }
+                SetGradientByProperty(gradient,countProperty, colorProperties, alphaProperties);
+              
                 GradientReflectionHelper.RefreshGradientData();
                 // Debug.Log("----------------SetCurrentGradient------------------");
             }
-
             
-           
-            
-
-            EditorGUI.showMixedValue = hasMixedValue;
+            EditorGUI.showMixedValue = GradientPropertyHasMixedValue(countProperty, colorProperties, alphaProperties);
+            GetGradientKeyCount(countProperty, colorProperties, alphaProperties,out int countPropertyIntValue, out int colorKeysCount,out int alphaKeysCount);
+            GetGradientConditionBool(colorProperties, alphaProperties,out bool isBlackAndWhiteGradient,out bool isNoAlphaColorGradient);
             
             EditorGUI.BeginChangeCheck();
             gradient = EditorGUI.GradientField(gradientRect, new GUIContent(label),gradient,hdr,colorSpace);
-            if (EditorGUI.EndChangeCheck())
+
+            Action onGradientEndChangeCheck = () =>
             {
                 gradientsUpdateDic[gradient] = true;
                 int countPropertyValue = countPropertyIntValue;
@@ -1507,8 +1585,73 @@ namespace NBShaderEditor
                 }
 
                 countProperty.intValue = countPropertyValue;
+                ResetTool.CheckOnValueChange(nameTuple);
+                
+            };
 
+            if (EditorGUI.EndChangeCheck())
+            {
+                onGradientEndChangeCheck();
             }
+            
+      
+            ResetTool.DrawResetModifyButton(gradientResetButtonRect,nameTuple,resetCallBack: () =>
+                {
+                    ShaderPropertyPack countPropPack = ShaderPropertyPacksDic[countPropertyName];
+                    countPropPack.property.intValue = shader.GetPropertyDefaultIntValue(countPropPack.index);
+                    if (colorProperties != null)
+                    {
+                        foreach (var colorProp in colorProperties)
+                        {
+                            ShaderPropertyPack colorPropPack = ShaderPropertyPacksDic[colorProp.name];
+                            colorPropPack.property.vectorValue =
+                                shader.GetPropertyDefaultVectorValue(colorPropPack.index);
+                        }
+                    }
+
+                    if (alphaProperties != null)
+                    {
+                        foreach (var alphaProps in alphaProperties)
+                        {
+                            ShaderPropertyPack alphaPropPack = ShaderPropertyPacksDic[alphaProps.name];
+                            alphaPropPack.property.vectorValue = shader.GetPropertyDefaultVectorValue(alphaPropPack.index);
+                        }
+                    }
+                    SetGradientByProperty(gradient,countProperty, colorProperties, alphaProperties);
+
+                },onValueChangedCallBack:onGradientEndChangeCheck,
+                checkHasMixedValueOnValueChange: () =>
+                GradientPropertyHasMixedValue(countProperty, colorProperties, alphaProperties),
+                checkHasModifyOnValueChange: () =>
+                {
+                    bool hasModified = false;
+                    ShaderPropertyPack countPropPack = ShaderPropertyPacksDic[countPropertyName];
+                    bool hasCountModified = !Mathf.Approximately(mats[0].GetInteger(countPropPack.name),shader.GetPropertyDefaultIntValue(countPropPack.index));
+                    hasModified |= hasCountModified;
+                    if (colorProperties != null)
+                    {
+                        foreach (var colorProp in colorProperties)
+                        {
+                            ShaderPropertyPack colorPropPack = ShaderPropertyPacksDic[colorProp.name];
+                            hasModified |= mats[0].GetVector(colorPropPack.name) !=
+                                           shader.GetPropertyDefaultVectorValue(colorPropPack.index);
+                        }
+                    }
+
+                    if (alphaProperties != null)
+                    {
+                        foreach (var alphaProps in alphaProperties)
+                        {
+                            ShaderPropertyPack alphaPropPack = ShaderPropertyPacksDic[alphaProps.name];
+                            Vector4 vec = mats[0].GetVector(alphaPropPack.name);
+                            Vector4 defaultVec = shader.GetPropertyDefaultVectorValue(alphaPropPack.index);
+                            hasModified |= vec != defaultVec;
+                        }
+                    }
+                    return hasModified;
+                });
+            
+            ResetTool.EndResetModifyButtonScope();
         }
 
         
