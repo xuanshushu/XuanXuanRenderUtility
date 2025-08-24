@@ -73,7 +73,17 @@ namespace NBShaderEditor
             {
                 ShowResetPopupMenu();
             }
-            
+            if (GUILayout.Button(EditorGUIUtility.IconContent("d_UnityEditor.HierarchyWindow","折叠所有控件|折叠所有控件"), EditorStyles.toolbarButton,GUILayout.Width(BtnWidth)))
+            {
+                for (int i = 0;i<Helper.shaderFlags.Length;i++)
+                {
+                    W9ParticleShaderFlags shaderFlags = (W9ParticleShaderFlags)Helper.shaderFlags[i];
+                    for (int j = 3; j <= 5; j++)
+                    {
+                        Helper.mats[i].SetInteger(shaderFlags.GetShaderFlagsId(j),0);
+                    }
+                }
+            }
 
             // 2. 添加下拉菜单
             // viewModeIndex = EditorGUILayout.Popup(viewModeIndex, viewModes, EditorStyles.toolbarPopup, GUILayout.Width(BtnWidth));
