@@ -1222,7 +1222,7 @@ namespace NBShaderEditor
                 ResetTool.CheckOnValueChange((label,texturePropertyPack.property.name));
             };
             EditorGUI.BeginChangeCheck();
-            texture = (Texture)EditorGUI.ObjectField(textureRect,texture,typeof(Texture2D),false);
+            texture = (Texture)EditorGUI.ObjectField(textureRect,texture,typeof(Texture2D));
             if (EditorGUI.EndChangeCheck())
             {
                 drawTextureEndChangeCheck();
