@@ -51,9 +51,13 @@ namespace NBShaderEditor
 
         public bool isClearUnUsedTexture = false;
 
+        Color defaultBackgroundColor;
+        Color animatedBackgroundColor=>Color.red;
+
         public void Init(MaterialEditor materialEditor, MaterialProperty[] properties,
             ShaderFlagsBase[] shaderFlags_in = null, List<Material> mats_in = null)
         {
+            defaultBackgroundColor = GUI.backgroundColor;
             shaderFlags = shaderFlags_in;
             // ShaderPropertyPacks.Clear();
             matEditor = materialEditor;
@@ -113,7 +117,42 @@ namespace NBShaderEditor
         }
   
         private ShaderGUIToolBar _toolBar;
+    
         public ShaderGUIResetTool ResetTool;
+        public List<Renderer> renderersUsingThisMaterial = new List<Renderer>();
+
+        public bool IsPropertyAnimated(string propertyName,params string[] componentNames)
+        {
+            if (AnimationMode.InAnimationMode())
+            {
+                string propertyPath = "material." + propertyName;
+                
+                foreach (var r in renderersUsingThisMaterial)
+                {
+                    if (componentNames.Length > 0)
+                    {
+                        foreach (var component in componentNames)
+                        {
+                            string propertyPathWithComponent = propertyPath +"." +component;
+                            if (AnimationMode.IsPropertyAnimated(r, propertyPathWithComponent))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (AnimationMode.IsPropertyAnimated(r, propertyPath))
+                        {
+                            // Debug.Log(propertyName);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
 
         public void DrawToolBar()
         {
@@ -153,7 +192,12 @@ namespace NBShaderEditor
            
             EditorGUI.BeginChangeCheck();
             bool hdr = (prop.flags & MaterialProperty.PropFlags.HDR) != 0;
+            if (IsPropertyAnimated(propertyName,"r","g","b","a"))
+            {
+                GUI.backgroundColor = animatedBackgroundColor;
+            }
             color = EditorGUI.ColorField(position, new GUIContent(label), prop.colorValue, true, showAlpha, hdr);
+            GUI.backgroundColor = defaultBackgroundColor;
             Action onEndChaneChange = () =>
             {
                 prop.colorValue = color;
@@ -174,10 +218,10 @@ namespace NBShaderEditor
             ResetTool.EndResetModifyButtonScope();
         }
 
-        public void DrawBigBlockFoldOut(int foldOutFlagBit,int foldOutFlagIndex,int animBoolIndex ,string label, Action drawBlock)
+        public void DrawBigBlockFoldOut(int foldOutFlagBit,int foldOutFlagIndex,int animBoolIndex ,string label, Action drawBlock,bool isResetButtonBias = true)
         {
             EditorGUILayout.Space();
-            DrawFoldOut(foldOutFlagBit,foldOutFlagIndex,animBoolIndex, label,FontStyle.Bold, drawBlock);
+            DrawFoldOut(foldOutFlagBit,foldOutFlagIndex,animBoolIndex, label,FontStyle.Bold, drawBlock,isResetButtonBias);
             GuiLine();
         }
 
@@ -204,7 +248,7 @@ namespace NBShaderEditor
             return animBoolArr[arrIndex];
         }
 
-        public void DrawFoldOut(int foldOutFlagBit,int foldOutFlagIndex,int animBoolIndex, String label,FontStyle fontStyle = FontStyle.Normal, Action drawBlock = null)
+        public void DrawFoldOut(int foldOutFlagBit,int foldOutFlagIndex,int animBoolIndex, String label,FontStyle fontStyle = FontStyle.Normal, Action drawBlock = null,bool isResetButtonBias = true)
         {
             bool foldOutState = shaderFlags[0].CheckFlagBits(foldOutFlagBit, index: foldOutFlagIndex);
             AnimBool animBool = GetAnimBool(foldOutFlagBit, animBoolIndex, foldOutFlagIndex);
@@ -216,7 +260,8 @@ namespace NBShaderEditor
             foldoutRect.width -= 2 * ResetTool.ResetButtonSize;
             var labelRect = new Rect(rect.x + 2f, rect.y, rect.width - 2f, rect.height);
             var resetRect = rect;
-            resetRect.x = rect.x + rect.width - ResetTool.ResetButtonSize-3f;
+            resetRect.x = rect.x + rect.width - ResetTool.ResetButtonSize ;
+            if (isResetButtonBias) resetRect.x -= 3f;
             resetRect.width = ResetTool.ResetButtonSize;
             
             animBool.target = EditorGUI.Foldout(foldoutRect, animBool.target, string.Empty, true);
@@ -430,17 +475,136 @@ namespace NBShaderEditor
             }
         }
 
-        public void DrawSlider(string label, string propertyName, float minValue, float maxValue,
-            Action<float> drawBlock = null)
+        void RangeVecHasMixedValue(string rangePropertyName, out bool minValueHasMixed, out bool maxValueHasMixed)
+        { 
+            minValueHasMixed = false;
+            maxValueHasMixed = false;
+            if (mats.Count > 1)
+            {
+                MaterialProperty rangeProperty = GetProperty(rangePropertyName);
+                float minValue = 0;
+                float maxValue = 0;
+                for (int i = 0; i < mats.Count; i++)
+                {
+                    Vector4 rangeVec = mats[i].GetVector(rangePropertyName);
+                    if (i == 0)
+                    {
+                        minValue = rangeVec.x;
+                        maxValue = rangeVec.y;
+                    }
+                    else
+                    {
+                        if (!Mathf.Approximately(minValue, rangeVec.x))
+                        {
+                            minValueHasMixed = true;
+                        }
+
+                        if (!Mathf.Approximately(maxValue, rangeVec.y))
+                        {
+                            maxValueHasMixed = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        bool RangePropIsDefaultValue(string rangePropertyName)
         {
-            EditorGUI.showMixedValue = GetProperty(propertyName).hasMixedValue;
+            MaterialProperty rangeProperty = GetProperty(rangePropertyName);
+            return mats[0].GetVector(rangePropertyName) == shader.GetPropertyDefaultVectorValue(ShaderPropertyPacksDic[rangePropertyName].index) && !rangeProperty.hasMixedValue;
+        }
+
+        void DrawSlider(string label, ref float value,ref float min,ref float max,bool isValueMixed,string rangePropertyName = null,bool propIsAnimated = false)
+        {
+            if (rangePropertyName == null)
+            {
+                EditorGUI.showMixedValue = isValueMixed;
+                if (propIsAnimated) GUI.backgroundColor = animatedBackgroundColor;
+                value = EditorGUILayout.Slider(label,value,min,max);
+                GUI.backgroundColor = defaultBackgroundColor;
+                EditorGUI.showMixedValue = false;
+            }
+            else
+            {
+                Rect rect = EditorGUILayout.GetControlRect();
+                Rect labelRect = rect;
+                labelRect.width = EditorGUIUtility.labelWidth;
+                Rect valueRect = rect;
+                valueRect.x += EditorGUIUtility.labelWidth;
+                valueRect.width -= EditorGUIUtility.labelWidth;
+                // EditorGUI.DrawRect(valueRect,Color.red);
+                float rangeWidth = 50f;
+                Rect minRect = valueRect;
+                minRect.width = rangeWidth;
+                minRect.x -= indent;
+                minRect.width += indent;
+                // EditorGUI.DrawRect(minRect,Color.green);
+                Rect maxRect = valueRect;
+                maxRect.x += valueRect.width;
+                maxRect.x -= rangeWidth;
+                maxRect.width = rangeWidth;
+                maxRect.x -= indent;
+                maxRect.width += indent;
+                valueRect.x += rangeWidth;
+                valueRect.width -= 2*rangeWidth;
+                valueRect.x -= indent;
+                valueRect.width += indent;
+                valueRect.x += 4f;
+                valueRect.width -= 8f;
+                EditorGUI.LabelField(labelRect, label);
+                
+                RangeVecHasMixedValue(rangePropertyName,out bool minValueHasMixed,out bool maxValueHasMixed);
+
+                EditorGUI.showMixedValue = minValueHasMixed;
+                min = EditorGUI.FloatField(minRect, GUIContent.none, min);
+                EditorGUI.showMixedValue = maxValueHasMixed;
+                max = EditorGUI.FloatField(maxRect, GUIContent.none, max);
+                EditorGUI.showMixedValue = isValueMixed;
+                if (propIsAnimated)
+                {
+                    GUI.backgroundColor = animatedBackgroundColor;
+                }
+                value = EditorGUI.Slider(valueRect, value, min, max);
+                GUI.backgroundColor = defaultBackgroundColor;
+                EditorGUI.showMixedValue = false;
+            }
+        }
+
+        public void DrawSlider(string label, string propertyName,float min = 0,float max = 1,string rangePropertyName = null, Action<float> drawBlock = null)
+        {
+            bool hasMixedValue = GetProperty(propertyName).hasMixedValue;
             float f = GetProperty(propertyName).floatValue;
+            bool customedRange = rangePropertyName != null;
+            Vector4 rangeVec = Vector4.zero;
+            if (customedRange)
+            {
+                rangeVec = GetProperty(rangePropertyName).vectorValue;
+            }
             EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginChangeCheck();
-            f = EditorGUILayout.Slider(label, f, minValue, maxValue);
+            if (IsPropertyAnimated(propertyName))
+            {
+                GUI.backgroundColor = animatedBackgroundColor;
+            }
+
+            bool isPropAnimated = IsPropertyAnimated(propertyName);
+            if (customedRange)
+            {
+                DrawSlider(label, ref f, ref rangeVec.x,ref rangeVec.y,hasMixedValue,rangePropertyName,isPropAnimated);
+            }
+            else
+            {
+                DrawSlider(label, ref f, ref min,ref max,hasMixedValue,propIsAnimated:isPropAnimated);
+            }
+
+            GUI.backgroundColor = defaultBackgroundColor;
             Action endChangCallBack= () =>
             {
                 GetProperty(propertyName).floatValue = f;
+                if (customedRange)
+                {
+                    GetProperty(rangePropertyName).vectorValue = rangeVec;
+                }
                 ResetTool.CheckOnValueChange((label,propertyName));
             };
             EditorGUI.showMixedValue = false;
@@ -448,14 +612,41 @@ namespace NBShaderEditor
             {
                 endChangCallBack.Invoke();
             }
-            ResetTool.DrawResetModifyButton(new Rect(),(label,propertyName),ShaderPropertyPacksDic[propertyName],resetAction: () =>
+            ResetTool.DrawResetModifyButton(new Rect(),(label,propertyName),resetCallBack: () =>
             {
-                f = GetProperty(propertyName).floatValue;
-            },onValueChangedCallBack:endChangCallBack);
-            drawBlock?.Invoke(f);
+                f = shader.GetPropertyDefaultFloatValue(ShaderPropertyPacksDic[propertyName].index);
+                if (customedRange)
+                {
+                    rangeVec = shader.GetPropertyDefaultVectorValue(ShaderPropertyPacksDic[rangePropertyName].index);
+                }
+            },onValueChangedCallBack: () =>
+            {
+                endChangCallBack();
+            }
+            ,checkHasModifyOnValueChange:
+            () =>
+            {
+                bool isModify = !Mathf.Approximately(mats[0].GetFloat(propertyName),shader.GetPropertyDefaultFloatValue(ShaderPropertyPacksDic[propertyName].index));
+                if (customedRange)
+                {
+                    isModify |= !RangePropIsDefaultValue(rangePropertyName);
+                }
+                return isModify;
+            },checkHasMixedValueOnValueChange:
+            () =>
+            {
+                bool hasMixedValue = false;
+                hasMixedValue |= GetProperty(propertyName).hasMixedValue;
+                if (customedRange)
+                {
+                    RangeVecHasMixedValue(rangePropertyName,out bool minValueHasMixed,out bool maxValueHasMixed);
+                    hasMixedValue |= minValueHasMixed;
+                    hasMixedValue |= maxValueHasMixed;
+                }
+                return hasMixedValue;
+            });
             EditorGUILayout.EndHorizontal();
-            
-
+            drawBlock?.Invoke(f);
             ResetTool.EndResetModifyButtonScope();
         }
 
@@ -473,8 +664,14 @@ namespace NBShaderEditor
                 floatProperty.floatValue = f;
                 ResetTool.CheckOnValueChange((label,propertyName));
             };
+            
             EditorGUILayout.BeginHorizontal();
+            if (IsPropertyAnimated(propertyName))
+            {
+                GUI.backgroundColor = animatedBackgroundColor;
+            }
             f = EditorGUILayout.FloatField(label, f);
+            GUI.backgroundColor = defaultBackgroundColor;
   
             if (isReciprocal) f = 1 / f;
             if (EditorGUI.EndChangeCheck())
@@ -571,7 +768,31 @@ namespace NBShaderEditor
             EditorGUILayout.BeginHorizontal();
 
             Vector2 vec2 = GetVec2InVec4(property.vectorValue, isFirstLine);
-            vec2 = EditorGUILayout.Vector2Field(label, vec2);
+            // vec2 = EditorGUILayout.Vector2Field(label, vec2);
+            Rect rect = EditorGUILayout.GetControlRect(true);
+            Rect labelRect = rect;
+            labelRect.width = EditorGUIUtility.labelWidth - indent;
+            EditorGUI.LabelField(labelRect, label);
+            Rect vec2Rect = rect;
+            vec2Rect.x += labelRect.width;
+            vec2Rect.width -= labelRect.width;
+            if (isFirstLine)
+            {
+                if (IsPropertyAnimated(propertyName, "x", "y"))
+                {
+                    GUI.backgroundColor = animatedBackgroundColor;
+                }
+            }
+            else
+            {
+                if (IsPropertyAnimated(propertyName, "z", "w"))
+                {
+                    GUI.backgroundColor = animatedBackgroundColor;
+                }
+            }
+            vec2 = EditorGUI.Vector2Field(vec2Rect,"", vec2);
+            GUI.backgroundColor = defaultBackgroundColor;
+            
             Action vec2OnEndChangeCheck = () =>
             {
                 int shaderID = Shader.PropertyToID(propertyName);
@@ -690,34 +911,53 @@ namespace NBShaderEditor
             return false;
             
         }
-        public void DrawVector4Component(string label, string propertyName, string channel, bool isSlider,
-            float minValue = 0, float maxValue = 1, float powerSlider = 1, float multiplier = 1,
+        public void DrawVector4Component(string label, string propertyName, string channel, bool isSlider,float minValue = 0,float maxValue = 1,
+            string rangeVecPropName = null, float powerSlider = 1, float multiplier = 1,
             bool isReciprocal = false, Action<float,bool> drawBlock = null, Action<float,bool> drawEndChangeCheckBlock = null)
         {
             bool hasMixedValue = Vector4ComponentHasMixedValue(propertyName, channel);
             (string, string) nameTuple = (label, propertyName);
-            EditorGUI.showMixedValue = hasMixedValue;
             Vector4 vec = GetProperty(propertyName).vectorValue;
             float f = GetCompInVec4(vec, channel);
+            Vector4 rangeVec = Vector4.zero;
+            bool isCustomedRange = rangeVecPropName != null;
+            if (isCustomedRange)
+            {
+                rangeVec = GetProperty(rangeVecPropName).vectorValue;
+            }
             f *= multiplier;
             if (isReciprocal) f = 1 / f;
             EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginChangeCheck();
+            bool propIsAnimated = IsPropertyAnimated(propertyName, channel);
             if (isSlider)
             {
                 if (powerSlider > 1)
                 {
-                    f = PowerSlider(EditorGUILayout.GetControlRect(new GUILayoutOption[] { GUILayout.Height(18) }),
-                        new GUIContent(label), f, minValue, maxValue, powerSlider);
+                    if (propIsAnimated) GUI.backgroundColor = animatedBackgroundColor;
+                     f = PowerSlider(EditorGUILayout.GetControlRect(new GUILayoutOption[] { GUILayout.Height(18) }),
+                         new GUIContent(label), f, minValue, maxValue, powerSlider);
+                     GUI.backgroundColor = defaultBackgroundColor;
                 }
                 else
                 {
-                    f = EditorGUILayout.Slider(label, f, minValue, maxValue);
+                    if (isCustomedRange)
+                    {
+                        DrawSlider(label,ref f,ref rangeVec.x,ref rangeVec.y,hasMixedValue,rangeVecPropName,propIsAnimated);
+                    }
+                    else
+                    {
+                        DrawSlider(label,ref f,ref minValue,ref maxValue,hasMixedValue,propIsAnimated:propIsAnimated);
+                    }
                 }
             }
             else
             {
+                EditorGUI.showMixedValue = hasMixedValue;
+                if(propIsAnimated) GUI.backgroundColor = animatedBackgroundColor;
                 f = EditorGUILayout.FloatField(label, f);
+                GUI.backgroundColor = defaultBackgroundColor;
+                EditorGUI.showMixedValue = false;
             }
 
             if (isReciprocal) f = 1 / f;
@@ -738,6 +978,10 @@ namespace NBShaderEditor
                     {
                         mats[i].SetVector(id, val);
                     }
+                    if (isCustomedRange)
+                    {
+                        mats[i].SetVector(rangeVecPropName, rangeVec);
+                    }
                 }
 
                 drawEndChangeCheckBlock?.Invoke(f, hasMixedValue); 
@@ -753,15 +997,33 @@ namespace NBShaderEditor
                 resetCallBack:()=>
                 {
                     f = GetCompDefaultValueInVec4(propertyName, channel);
+                    if (isCustomedRange)
+                    {
+                        rangeVec = shader.GetPropertyDefaultVectorValue(ShaderPropertyPacksDic[rangeVecPropName].index);
+                    }
                     floatVecEndChangeCheck();
                 },onValueChangedCallBack:floatVecEndChangeCheck,
                 checkHasModifyOnValueChange: () =>
                 {
-                    bool isEqual = Mathf.Approximately(GetCompInVec4(mats[0].GetVector(propertyName), channel),
-                        GetCompDefaultValueInVec4(propertyName, channel));
+                    bool isEqual = Mathf.Approximately(GetCompInVec4(mats[0].GetVector(propertyName), channel), GetCompDefaultValueInVec4(propertyName, channel));
+                    if (isCustomedRange)
+                    {
+                        isEqual &= RangePropIsDefaultValue(rangeVecPropName);
+                    }
                     return !isEqual;
                 },
-                checkHasMixedValueOnValueChange: () => Vector4ComponentHasMixedValue(propertyName, channel));
+                checkHasMixedValueOnValueChange: () =>
+                {
+                    bool hasMixedValue = Vector4ComponentHasMixedValue(propertyName, channel);
+                    if (isCustomedRange)
+                    {
+                        RangeVecHasMixedValue(rangeVecPropName, out bool minValueHasMixed, out bool maxValueHasMixed);
+                        hasMixedValue |= minValueHasMixed;
+                        hasMixedValue |= maxValueHasMixed;
+                    }
+
+                    return hasMixedValue;
+                });
             EditorGUILayout.EndHorizontal();
 
             drawBlock?.Invoke(f,hasMixedValue);
@@ -1031,7 +1293,12 @@ namespace NBShaderEditor
 
             };
             EditorGUI.BeginChangeCheck();
+            if (IsPropertyAnimated(tillingTuple.Item2, "x","y") )
+            {
+                GUI.backgroundColor = animatedBackgroundColor;
+            }
             tilling = EditorGUI.Vector2Field(tillingVec2Rect, "", tilling);
+            GUI.backgroundColor = defaultBackgroundColor;
             if (EditorGUI.EndChangeCheck())
             {
                 drawTillingEndChangeCheck();
@@ -1056,7 +1323,12 @@ namespace NBShaderEditor
 
             };
             EditorGUI.BeginChangeCheck();
+            if (IsPropertyAnimated(offsetTuple.Item2, "z","w"))
+            {
+                GUI.backgroundColor = animatedBackgroundColor;
+            }
             offset = EditorGUI.Vector2Field(offsetVec2Rect, "", offset);
+            GUI.backgroundColor = defaultBackgroundColor;
             if (EditorGUI.EndChangeCheck())
             {
                 drawOffsetEndChangeCheck();
@@ -1160,7 +1432,7 @@ namespace NBShaderEditor
         public void DrawAfterTexture(bool hasTexture, string label, string texturePropertyName, bool drawWrapMode = false, int wrapModeFlagBitsName = 0, int flagIndex = 2,
             Action<MaterialProperty> drawBlock = null)
         {
-            EditorGUI.indentLevel++;
+            // EditorGUI.indentLevel++;
             EditorGUI.BeginDisabledGroup(!hasTexture);
             if (drawWrapMode)
             {
@@ -1168,7 +1440,7 @@ namespace NBShaderEditor
             }
 
             drawBlock?.Invoke(GetProperty(texturePropertyName));
-            EditorGUI.indentLevel--;
+            // EditorGUI.indentLevel--;
             EditorGUI.EndDisabledGroup();
         }
 
@@ -1604,7 +1876,7 @@ namespace NBShaderEditor
                         foreach (var colorProp in colorProperties)
                         {
                             ShaderPropertyPack colorPropPack = ShaderPropertyPacksDic[colorProp.name];
-                            colorPropPack.property.vectorValue =
+                            colorPropPack.property.colorValue =
                                 shader.GetPropertyDefaultVectorValue(colorPropPack.index);
                         }
                     }

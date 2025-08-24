@@ -23,6 +23,11 @@ namespace NBShaderEditor
         
         // 帮助链接URL
         private const string HELP_URL = "https://owejt9diz2c.feishu.cn/wiki/BHz8wHHSjiYJagk7WrmcAcconlb?from=from_copylink";
+        
+        private bool showImage = false;
+        private Vector2 imagePos;
+        private Texture2D icon;
+        private Texture2D image;
 
         public void DrawToolbar()
         {
@@ -63,32 +68,41 @@ namespace NBShaderEditor
                 {
                     Helper.mats[0].CopyPropertiesFromMaterial(copiedMaterial);
                 }
-                
+            }
+            if (GUILayout.Button(new GUIContent("R","特殊重置功能"), EditorStyles.toolbarButton,GUILayout.Width(BtnWidth)))
+            {
+                ShowResetPopupMenu();
             }
             
 
             // 2. 添加下拉菜单
-            // viewModeIndex = EditorGUILayout.Popup(viewModeIndex, viewModes, EditorStyles.toolbarPopup, GUILayout.Width(80));
+            // viewModeIndex = EditorGUILayout.Popup(viewModeIndex, viewModes, EditorStyles.toolbarPopup, GUILayout.Width(BtnWidth));
 
             // 3. 添加搜索框
             GUILayout.FlexibleSpace(); // 将搜索框推到中间
         
-            // 搜索框样式
-            GUIStyle searchField = new GUIStyle("SearchTextField");
-            GUIStyle cancelButton = new GUIStyle("SearchCancelButton");
-        
-            EditorGUILayout.BeginHorizontal(GUILayout.MaxWidth(300));
-            {
-                searchText = EditorGUILayout.TextField(searchText, searchField);
-            
-                // 清除搜索按钮
-                if (GUILayout.Button("", cancelButton))
-                {
-                    searchText = "";
-                    GUI.FocusControl(null); // 移除焦点
-                }
-            }
-            EditorGUILayout.EndHorizontal();
+            // // 搜索框样式
+            // GUIStyle searchField = new GUIStyle("SearchTextField");
+            // GUIStyle cancelButton = new GUIStyle("SearchCancelButton");
+            //
+            // EditorGUILayout.BeginHorizontal(GUILayout.MaxWidth(300));
+            // {
+            //     EditorGUI.BeginChangeCheck();
+            //     searchText = EditorGUILayout.TextField(searchText, searchField);
+            //     if (EditorGUI.EndChangeCheck())
+            //     {
+            //         Helper.isSearchText = searchText.Length > 0;
+            //         Helper.searchText = searchText;
+            //     }
+            //     
+            //     // 清除搜索按钮
+            //     if (GUILayout.Button("", cancelButton))
+            //     {
+            //         searchText = "";
+            //         GUI.FocusControl(null); // 移除焦点
+            //     }
+            // }
+            // EditorGUILayout.EndHorizontal();
 
             // // 4. 右侧按钮组
             // if (GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Refresh"), EditorStyles.toolbarButton))
@@ -105,6 +119,18 @@ namespace NBShaderEditor
             //     menu.AddItem(new GUIContent("Option 2"), false, () => Debug.Log("Option 2"));
             //     menu.ShowAsContext();
             // }
+            // 贴图加载
+            if (icon == null)
+                icon = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath("eaa39f504c2ce7646aece103ba9c4766"));
+            if (image == null)
+                image = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath("cc6c30349a33a1d4c8242a9ef1a68830"));
+            if (GUILayout.Button(new GUIContent(icon,"爸爸！"), EditorStyles.toolbarButton,GUILayout.Width(BtnWidth)))
+            {
+                // 弹出 PopupWindow
+                // 弹出浮动窗口
+                FloatingImageWindow.ShowWindow(image);
+            }
+            
             
             if (GUILayout.Button(EditorGUIUtility.IconContent("d__Help@2x","说明文档|说明文档"), EditorStyles.toolbarButton,GUILayout.Width(BtnWidth)))
             {
@@ -113,6 +139,27 @@ namespace NBShaderEditor
             }
 
             EditorGUILayout.EndHorizontal(); // 结束工具栏
+        }
+        
+        private void ShowResetPopupMenu()
+        {
+            GenericMenu menu = new GenericMenu();
+
+            menu.AddItem(new GUIContent("重置特殊UV通道"), false, () =>
+            {
+                Helper.ResetTool.ResetItemDict[("特殊UV通道选择","_SpecialUVChannelMode")].Execute();
+            });
+            menu.AddItem(new GUIContent("重置旋转扭曲"), false, () =>
+            {
+                Helper.ResetTool.ResetItemDict[("","_UTwirlEnabled")].Execute();
+            });
+            menu.AddItem(new GUIContent("重置极坐标"), false, () =>
+            {
+                Helper.ResetTool.ResetItemDict[("","_PolarCoordinatesEnabled")].Execute();
+            });
+
+            // 弹出位置可以用 Event.current.mousePosition
+            menu.DropDown(new Rect(Event.current.mousePosition, Vector2.zero));
         }
         
         private void CleanUnusedTextureProperties(Material mat)
@@ -143,6 +190,47 @@ namespace NBShaderEditor
                         mat.SetTexture(propName, null);
                         Debug.Log($"清理 {mat.name} 的无效贴图属性: {propName}");
                     }
+                }
+            }
+        }
+        
+        // EditorWindow 显示图片
+        public class FloatingImageWindow : EditorWindow
+        {
+            private Texture2D popupImage;
+
+            public static void ShowWindow(Texture2D image)
+            {
+                // 创建窗口
+                FloatingImageWindow window = CreateInstance<FloatingImageWindow>();
+                window.titleContent = new GUIContent("谢谢爸爸");
+                window.popupImage = image;
+
+                // 设置初始尺寸
+                if (image != null)
+                    window.position = new Rect(Screen.width / 2f - image.width / 2f,
+                        Screen.height / 2f - image.height / 2f,
+                        image.width,
+                        image.height);
+                else
+                    window.position = new Rect(Screen.width / 2f - 100, Screen.height / 2f - 100, 200, 200);
+
+                window.ShowUtility(); // 浮动窗口
+            }
+
+            private void OnGUI()
+            {
+                if (popupImage != null)
+                {
+                    // 绘制图片
+                    Rect rect = new Rect(0, 0, position.width, position.height);
+                    GUI.DrawTexture(rect, popupImage, ScaleMode.ScaleToFit);
+                }
+
+                // 可选：增加关闭按钮
+                if (GUI.Button(new Rect(position.width - 25, 5, 20, 20), "X"))
+                {
+                    Close();
                 }
             }
         }

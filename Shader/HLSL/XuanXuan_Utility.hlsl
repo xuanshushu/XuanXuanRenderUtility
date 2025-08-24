@@ -21,6 +21,12 @@ inline half NB_Remap(half x, half inMin, half inMax, half outMin, half outMax)
     return saturate((x - inMin) / (inMax - inMin)) * (outMax - outMin) + outMin;
 }
 
+inline half NB_Remap01(half x, half inMin, half inMax)
+{
+    // x=  clamp(x,inMin,inMax);
+    return saturate((x - inMin) / (inMax - inMin));
+}
+
 inline half NB_RemapNoClamp(half x, half inMin, half inMax, half outMin, half outMax)
 {
     // x=  clamp(x,inMin,inMax);

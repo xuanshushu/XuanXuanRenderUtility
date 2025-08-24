@@ -115,10 +115,14 @@ namespace NBShaderEditor
 
         public void CheckOnValueChange((string,string) nameTuple)
         {
-            var resetItem = ResetItemDict[nameTuple];
-            if (resetItem != null)
+            if (ResetItemDict.ContainsKey(nameTuple))
             {
-                resetItem.CheckOnValueChange();
+                 ResetItemDict[nameTuple].CheckOnValueChange();
+                
+            }
+            else
+            {
+                Debug.LogError("不包含ResetItemDict:"+nameTuple);
             }
         }
 
@@ -163,10 +167,8 @@ namespace NBShaderEditor
             {
                 ResetItem item = new ResetItem();
                 item.Init(nameTuple,resetAction,onValueChangedCallBack,checkHasModifyOnValueChange,checkHasMixedValueOnValueChange);
-                item.HasModified = checkHasModifyOnValueChange.Invoke();//初始化参数
-                item.HasMixedValue = checkHasMixedValueOnValueChange.Invoke();//初始化参数
-                
                 ResetItemDict.Add(nameTuple,item);
+                
                 if (_scopeContextStack.Count > 0 && !isSharedGlobalParent)
                 {
                     var contextNameTuple = _scopeContextStack.Peek();
@@ -174,6 +176,7 @@ namespace NBShaderEditor
                     parentItem.ChildResetItems.Add(item);
                     item.Parent = parentItem;
                 }
+                item.CheckOnValueChange();//Init
             }
             else
             {
