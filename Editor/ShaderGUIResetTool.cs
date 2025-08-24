@@ -372,7 +372,6 @@ namespace NBShaderEditor
                         case VectorValeType.XYZW:isVecModified=  vecValue == defaultVecValue? false : true ; break;
                     }
                     return isVecModified;
-                    break;
 
                 case MaterialProperty.PropType.Float or MaterialProperty.PropType.Range:
                     return Mathf.Approximately(property.floatValue, _shader.GetPropertyDefaultFloatValue(pack.index)) ? false : true;
@@ -391,8 +390,8 @@ namespace NBShaderEditor
                 default:
                     // 如果不属于上述类型，输出提示信息
                     return false;
-                    Debug.Log($"{property.displayName} has no default value or unsupported type");
-                    break;
+                    // Debug.Log($"{property.displayName} has no default value or unsupported type");
+                    // break;
             }
         }
     }

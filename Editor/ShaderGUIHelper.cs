@@ -188,7 +188,7 @@ namespace NBShaderEditor
             MaterialProperty prop = shaderPropertyPack.property;
             Color color = shaderPropertyPack.property.colorValue;
             Rect position = EditorGUILayout.GetControlRect();
-            MaterialEditor.BeginProperty(position, prop);
+            // MaterialEditor.BeginProperty(position, prop);
            
             EditorGUI.BeginChangeCheck();
             bool hdr = (prop.flags & MaterialProperty.PropFlags.HDR) != 0;
@@ -211,7 +211,7 @@ namespace NBShaderEditor
             {
                 color = prop.colorValue;
             },onValueChangedCallBack: onEndChaneChange);
-            MaterialEditor.EndProperty();
+            // MaterialEditor.EndProperty();
             // matEditor.ColorProperty(GetProperty(propertyName), label);
             
             EditorGUILayout.EndHorizontal();
@@ -320,7 +320,9 @@ namespace NBShaderEditor
 
             EditorGUILayout.BeginHorizontal();
             var rect = EditorGUILayout.GetControlRect();
-            var toggleRect = GetRectAfterLabelWidth(rect);
+            var toggleRect = rect;
+            toggleRect.x += EditorGUIUtility.labelWidth;
+            toggleRect.width -= EditorGUIUtility.labelWidth;
 
             var foldoutRect = new Rect(rect.x, rect.y, rect.width, rect.height);
             foldoutRect.width = toggleRect.x - foldoutRect.x;
@@ -328,13 +330,12 @@ namespace NBShaderEditor
 
             // bool isToggle = false;
             // 必须先画Toggle，不然按钮会被FoldOut和Label覆盖。
-            DrawToggle("", propertyName, flagBitsName, flagIndex, shaderKeyword, shaderPassName, isIndentBlock: false, fontStyle: FontStyle.Normal, rect: toggleRect, drawEndChangeCheck: drawEndChangeCheck,isSharedGlobalParent:isSharedGlobalParent);
-
-            // EditorGUI.DrawRect(foldoutRect,Color.red);
+            DrawToggle(string.Empty, propertyName, flagBitsName, flagIndex, shaderKeyword, shaderPassName, isIndentBlock: false, fontStyle: FontStyle.Normal, rect: toggleRect, drawEndChangeCheck: drawEndChangeCheck,isSharedGlobalParent:isSharedGlobalParent);
+            
             foldOutAnimBool.target = EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
             var origFontStyle = EditorStyles.label.fontStyle;
             EditorStyles.label.fontStyle = fontStyle;
-            // EditorGUI.DrawRect(labelRect,Color.blue);
+
             EditorGUI.LabelField(labelRect, label);
             EditorStyles.label.fontStyle = origFontStyle;
             EditorGUILayout.EndHorizontal();
@@ -362,30 +363,34 @@ namespace NBShaderEditor
         {
             if (GetProperty(propertyName) == null)
                 return;
-
+            
             if (fontStyle == FontStyle.Bold)
             {
                 EditorGUILayout.Space();
             }
-
+            
             MaterialProperty toggleProperty = GetProperty(propertyName);
             ShaderPropertyPack propertyPack = ShaderPropertyPacksDic[propertyName];
             EditorGUI.showMixedValue = toggleProperty.hasMixedValue;
-
+            
             EditorGUI.BeginChangeCheck();
             bool isToggle = toggleProperty.floatValue > 0.5f ? true : false;
             var origFontStyle = EditorStyles.label.fontStyle;
             EditorStyles.label.fontStyle = fontStyle;
-            if (rect.width > 0) //给FoldOut功能使用。
+            Rect resetButtonRect = rect;
+            if (label.Length == 0) //给FoldOut功能使用。
             {
+                rect.x += 2f;
                 isToggle = EditorGUI.Toggle(rect, isToggle, EditorStyles.toggle);
+                resetButtonRect.x = resetButtonRect.x + resetButtonRect.width - ResetTool.ResetButtonSize;
+                resetButtonRect.width = ResetTool.ResetButtonSize;
             }
             else
             {
                 EditorGUILayout.BeginHorizontal();
                 isToggle = EditorGUILayout.Toggle(label, isToggle);
             }
-
+            
             EditorStyles.label.fontStyle = origFontStyle;
             Action onEndChangeCheck = () =>
             {
@@ -403,17 +408,17 @@ namespace NBShaderEditor
                             {
                                 shaderFlags[i].SetFlagBits(flagBitsName, index: flagIndex);
                             }
-
+            
                             if (shaderKeyword != null)
                             {
                                 mats[i].EnableKeyword(shaderKeyword);
                             }
-
+            
                             if (shaderPassName != null)
                             {
                                 mats[i].SetShaderPassEnabled(shaderPassName, true);
                             }
-
+            
                             if (shaderPassName2 != null)
                             {
                                 mats[i].SetShaderPassEnabled(shaderPassName2, true);
@@ -424,22 +429,22 @@ namespace NBShaderEditor
                             
                             mats[i].SetFloat(propertyName,0);
                             
-
+            
                             if (flagBitsName != 0 && shaderFlags[i] != null)
                             {
                                 shaderFlags[i].ClearFlagBits(flagBitsName, index: flagIndex);
                             }
-
+            
                             if (shaderKeyword != null)
                             {
                                 mats[i].DisableKeyword(shaderKeyword);
                             }
-
+            
                             if (shaderPassName != null)
                             {
                                 mats[i].SetShaderPassEnabled(shaderPassName, false);
                             }
-
+            
                             if (shaderPassName2 != null)
                             {
                                 mats[i].SetShaderPassEnabled(shaderPassName2, false);
@@ -454,20 +459,21 @@ namespace NBShaderEditor
                 onEndChangeCheck();
             }
             
-            ResetTool.DrawResetModifyButton(new Rect(),(label,propertyPack.name),propertyPack,resetAction: () =>
+            
+            ResetTool.DrawResetModifyButton(resetButtonRect,(label,propertyPack.name),propertyPack,resetAction: () =>
             {
                 isToggle = propertyPack.property.floatValue > 0.5f ? true : false;
             },onValueChangedCallBack:onEndChangeCheck,isSharedGlobalParent:isSharedGlobalParent);
-
-            if (rect.width <= 0)
+            
+            if (label.Length > 0)
             {
                 EditorGUILayout.EndHorizontal();
             }
-
+            
             if (isIndentBlock) EditorGUI.indentLevel++;
             drawBlock?.Invoke(toggleProperty);
             if (isIndentBlock) EditorGUI.indentLevel--;
-
+            
             EditorGUI.showMixedValue = false;
             if (rect.width <= 0)
             {
@@ -859,7 +865,6 @@ namespace NBShaderEditor
 
         float GetCompDefaultValueInVec4(string propertyName, string comp)
         {
-            float f = 0;
             ShaderPropertyPack propertyPack = ShaderPropertyPacksDic[propertyName];
             Vector4 defaultValue = shader.GetPropertyDefaultVectorValue(propertyPack.index);
             return GetCompInVec4(defaultValue, comp);
@@ -1217,7 +1222,7 @@ namespace NBShaderEditor
                 ResetTool.CheckOnValueChange((label,texturePropertyPack.property.name));
             };
             EditorGUI.BeginChangeCheck();
-            texture = (Texture)EditorGUI.ObjectField(textureRect,texture,typeof(Texture2D));
+            texture = (Texture)EditorGUI.ObjectField(textureRect,texture,typeof(Texture2D),false);
             if (EditorGUI.EndChangeCheck())
             {
                 drawTextureEndChangeCheck();
@@ -1870,7 +1875,9 @@ namespace NBShaderEditor
             ResetTool.DrawResetModifyButton(gradientResetButtonRect,nameTuple,resetCallBack: () =>
                 {
                     ShaderPropertyPack countPropPack = ShaderPropertyPacksDic[countPropertyName];
-                    countPropPack.property.intValue = shader.GetPropertyDefaultIntValue(countPropPack.index);
+                    
+                    countPropPack.property.intValue = 2;
+                    
                     if (colorProperties != null)
                     {
                         foreach (var colorProp in colorProperties)
@@ -1898,7 +1905,8 @@ namespace NBShaderEditor
                 {
                     bool hasModified = false;
                     ShaderPropertyPack countPropPack = ShaderPropertyPacksDic[countPropertyName];
-                    bool hasCountModified = !Mathf.Approximately(mats[0].GetInteger(countPropPack.name),shader.GetPropertyDefaultIntValue(countPropPack.index));
+
+                    bool hasCountModified = !Mathf.Approximately(mats[0].GetInteger(countPropPack.name),2);
                     hasModified |= hasCountModified;
                     if (colorProperties != null)
                     {
