@@ -12,7 +12,7 @@ namespace NBShaderEditor
         private int viewModeIndex;
         private readonly string[] viewModes = { "List", "Grid" };
         // private string searchText = "";
-        private MaterialEditor _editor=>Helper.matEditor;
+        private MaterialEditor _editor => Helper.matEditor;
         public ShaderGUIToolBar(ShaderGUIHelper helper)
         {
             Helper = helper;
