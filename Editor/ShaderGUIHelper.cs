@@ -319,36 +319,34 @@ namespace NBShaderEditor
             }
 
             EditorGUILayout.BeginHorizontal();
-            var rect = EditorGUILayout.GetControlRect();
-            var toggleRect = rect;
-            toggleRect.x += EditorGUIUtility.labelWidth;
-            toggleRect.width -= EditorGUIUtility.labelWidth;
+                var rect = EditorGUILayout.GetControlRect();
+                var toggleRect = rect;
+                toggleRect.x += EditorGUIUtility.labelWidth;
+                toggleRect.width -= EditorGUIUtility.labelWidth;
 
-            var foldoutRect = new Rect(rect.x, rect.y, rect.width, rect.height);
-            foldoutRect.width = toggleRect.x - foldoutRect.x;
-            var labelRect = new Rect(rect.x , rect.y, rect.width , rect.height);
+                var foldoutRect = new Rect(rect.x, rect.y, rect.width, rect.height);
+                foldoutRect.width = toggleRect.x - foldoutRect.x;
+                var labelRect = new Rect(rect.x , rect.y, rect.width , rect.height);
 
-            // bool isToggle = false;
-            // 必须先画Toggle，不然按钮会被FoldOut和Label覆盖。
-            DrawToggle(string.Empty, propertyName, flagBitsName, flagIndex, shaderKeyword, shaderPassName, isIndentBlock: false, fontStyle: FontStyle.Normal, rect: toggleRect, drawEndChangeCheck: drawEndChangeCheck,isSharedGlobalParent:isSharedGlobalParent);
-            
-            foldOutAnimBool.target = EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
-            var origFontStyle = EditorStyles.label.fontStyle;
-            EditorStyles.label.fontStyle = fontStyle;
+                // bool isToggle = false;
+                // 必须先画Toggle，不然按钮会被FoldOut和Label覆盖。
+                DrawToggle(string.Empty, propertyName, flagBitsName, flagIndex, shaderKeyword, shaderPassName, isIndentBlock: false, fontStyle: FontStyle.Normal, rect: toggleRect, drawEndChangeCheck: drawEndChangeCheck,isSharedGlobalParent:isSharedGlobalParent);
+                
+                foldOutAnimBool.target = EditorGUI.Foldout(foldoutRect, foldOutAnimBool.target, string.Empty, true);
+                var origFontStyle = EditorStyles.label.fontStyle;
+                EditorStyles.label.fontStyle = fontStyle;
 
-            EditorGUI.LabelField(labelRect, label);
-            EditorStyles.label.fontStyle = origFontStyle;
+                EditorGUI.LabelField(labelRect, label);
+                EditorStyles.label.fontStyle = origFontStyle;
             EditorGUILayout.EndHorizontal();
             if (isIndentBlock) EditorGUI.indentLevel++;
             float faded = foldOutAnimBool.faded;
-            if (faded == 0) faded = 0.00001f; //用于欺骗FadeGroup，不要让他真的关闭了。这样会藏不住相关的GUI。我们的目的是，GUI藏住，但是逻辑还是在跑。drawBlock要执行。
+            if (faded == 0) faded = 0.0001f; //用于欺骗FadeGroup，不要让他真的关闭了。这样会藏不住相关的GUI。我们的目的是，GUI藏住，但是逻辑还是在跑。drawBlock要执行。
             EditorGUILayout.BeginFadeGroup(faded);
-            {
-                bool isDisabledGroup = toggleProp.hasMixedValue || toggleProp.floatValue < 0.5f;
-                EditorGUI.BeginDisabledGroup(isDisabledGroup);
-                drawBlock?.Invoke(toggleProp);
-                EditorGUI.EndDisabledGroup();
-            }
+                    bool isDisabledGroup = toggleProp.hasMixedValue || toggleProp.floatValue < 0.5f;
+                    EditorGUI.BeginDisabledGroup(isDisabledGroup);
+                    drawBlock?.Invoke(toggleProp);
+                    EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndFadeGroup();
             if (isIndentBlock) EditorGUI.indentLevel--;
             
@@ -378,7 +376,7 @@ namespace NBShaderEditor
             var origFontStyle = EditorStyles.label.fontStyle;
             EditorStyles.label.fontStyle = fontStyle;
             Rect resetButtonRect = rect;
-            if (label.Length == 0) //给FoldOut功能使用。
+            if (label.Length <= 0) //给FoldOut功能使用。
             {
                 rect.x += 2f;
                 isToggle = EditorGUI.Toggle(rect, isToggle, EditorStyles.toggle);
@@ -387,8 +385,18 @@ namespace NBShaderEditor
             }
             else
             {
-                EditorGUILayout.BeginHorizontal();
-                isToggle = EditorGUILayout.Toggle(label, isToggle);
+                Rect newRect = EditorGUILayout.GetControlRect();
+                Rect newToggleRect = newRect;
+                Rect newLabelRect = newRect;
+                // newLabelRect.x += indent;
+                newLabelRect.width = EditorGUIUtility.labelWidth;
+                newToggleRect.x += EditorGUIUtility.labelWidth +2f;
+                newToggleRect.width -= EditorGUIUtility.labelWidth +2f;
+                resetButtonRect = newToggleRect;
+                resetButtonRect.x = resetButtonRect.x + resetButtonRect.width - ResetTool.ResetButtonSize;
+                resetButtonRect.width = ResetTool.ResetButtonSize;
+                EditorGUI.LabelField(newLabelRect, label);
+                isToggle = EditorGUI.Toggle(newToggleRect, isToggle, EditorStyles.toggle);
             }
             
             EditorStyles.label.fontStyle = origFontStyle;
@@ -465,10 +473,6 @@ namespace NBShaderEditor
                 isToggle = propertyPack.property.floatValue > 0.5f ? true : false;
             },onValueChangedCallBack:onEndChangeCheck,isSharedGlobalParent:isSharedGlobalParent);
             
-            if (label.Length > 0)
-            {
-                EditorGUILayout.EndHorizontal();
-            }
             
             if (isIndentBlock) EditorGUI.indentLevel++;
             drawBlock?.Invoke(toggleProperty);
