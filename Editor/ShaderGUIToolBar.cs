@@ -129,16 +129,16 @@ namespace NBShaderEditor
             //     menu.ShowAsContext();
             // }
             // 贴图加载
-            if (icon == null)
-                icon = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath("eaa39f504c2ce7646aece103ba9c4766"));
-            if (image == null)
-                image = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath("cc6c30349a33a1d4c8242a9ef1a68830"));
-            if (GUILayout.Button(new GUIContent(icon,"爸爸！"), EditorStyles.toolbarButton,GUILayout.Width(BtnWidth)))
-            {
-                // 弹出 PopupWindow
-                // 弹出浮动窗口
-                FloatingImageWindow.ShowWindow(image);
-            }
+            // if (icon == null)
+            //     icon = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath("eaa39f504c2ce7646aece103ba9c4766"));
+            // if (image == null)
+            //     image = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath("cc6c30349a33a1d4c8242a9ef1a68830"));
+            // if (GUILayout.Button(new GUIContent(icon,"爸爸！"), EditorStyles.toolbarButton,GUILayout.Width(BtnWidth)))
+            // {
+            //     // 弹出 PopupWindow
+            //     // 弹出浮动窗口
+            //     FloatingImageWindow.ShowWindow(image);
+            // }
             
             
             if (GUILayout.Button(EditorGUIUtility.IconContent("d__Help@2x","说明文档|说明文档"), EditorStyles.toolbarButton,GUILayout.Width(BtnWidth)))

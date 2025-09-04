@@ -120,12 +120,21 @@ namespace NBShaderEditor
     
         public ShaderGUIResetTool ResetTool;
         public List<Renderer> renderersUsingThisMaterial = new List<Renderer>();
+        
+        Dictionary<(string,string),string> propertyPathDic = new Dictionary<(string,string), string>();
+
+        public void InitRenderers(List<Renderer> rendererList)
+        {
+            renderersUsingThisMaterial = rendererList;
+            propertyPathDic.Clear();
+        }
 
         public bool IsPropertyAnimated(string propertyName,params string[] componentNames)
         {
             if (AnimationMode.InAnimationMode())
             {
-                string propertyPath = "material." + propertyName;
+                
+                // string propertyPath = "material." + propertyName;
                 
                 foreach (var r in renderersUsingThisMaterial)
                 {
@@ -133,8 +142,18 @@ namespace NBShaderEditor
                     {
                         foreach (var component in componentNames)
                         {
-                            string propertyPathWithComponent = propertyPath +"." +component;
-                            if (AnimationMode.IsPropertyAnimated(r, propertyPathWithComponent))
+
+                            string propertyPath;
+                            if (propertyPathDic.ContainsKey((propertyName, component)))
+                            {
+                                propertyPath = propertyPathDic[(propertyName, component)];
+                            }
+                            else
+                            {
+                                propertyPath = "material." + propertyName +"." +component;
+                                propertyPathDic.Add((propertyName, component), propertyPath);
+                            }
+                            if (AnimationMode.IsPropertyAnimated(r, propertyPath))
                             {
                                 return true;
                             }
@@ -142,6 +161,16 @@ namespace NBShaderEditor
                     }
                     else
                     {
+                        string propertyPath;
+                        if (propertyPathDic.ContainsKey((propertyName,"")))
+                        {
+                            propertyPath = propertyPathDic[(propertyName, "")];
+                        }
+                        else
+                        {
+                            propertyPath = "material." + propertyName;
+                            propertyPathDic.Add((propertyName,""), propertyPath);
+                        }
                         if (AnimationMode.IsPropertyAnimated(r, propertyPath))
                         {
                             // Debug.Log(propertyName);
@@ -244,6 +273,8 @@ namespace NBShaderEditor
             {
                 animBoolArr[arrIndex] = new AnimBool(shaderFlags[0].CheckFlagBits(flagBit,index:flagIndex));
             }
+
+            animBoolArr[arrIndex].speed = 6f;
             
             return animBoolArr[arrIndex];
         }
@@ -343,10 +374,13 @@ namespace NBShaderEditor
             float faded = foldOutAnimBool.faded;
             if (faded == 0) faded = 0.0001f; //用于欺骗FadeGroup，不要让他真的关闭了。这样会藏不住相关的GUI。我们的目的是，GUI藏住，但是逻辑还是在跑。drawBlock要执行。
             EditorGUILayout.BeginFadeGroup(faded);
+                  
                     bool isDisabledGroup = toggleProp.hasMixedValue || toggleProp.floatValue < 0.5f;
                     EditorGUI.BeginDisabledGroup(isDisabledGroup);
+                        
                     drawBlock?.Invoke(toggleProp);
                     EditorGUI.EndDisabledGroup();
+                    
             EditorGUILayout.EndFadeGroup();
             if (isIndentBlock) EditorGUI.indentLevel--;
             
@@ -1147,9 +1181,10 @@ namespace NBShaderEditor
             if (faded == 0) faded = 0.00001f;
             EditorGUILayout.BeginFadeGroup(faded);
             EditorGUI.BeginDisabledGroup(texture == null);
-
+           
             DrawAfterTexture(true, label, texturePropertyName, drawWrapMode, wrapModeFlagBitsName, flagIndex,
                 drawBlock);
+            
 
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndFadeGroup();
