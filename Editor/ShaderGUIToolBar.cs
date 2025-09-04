@@ -24,9 +24,9 @@ namespace NBShaderEditor
         // 帮助链接URL
         private const string HELP_URL = "https://owejt9diz2c.feishu.cn/wiki/BHz8wHHSjiYJagk7WrmcAcconlb?from=from_copylink";
         
-        private Vector2 imagePos;
-        private Texture2D icon;
-        private Texture2D image;
+        // private Vector2 imagePos;
+        // private Texture2D icon;
+        // private Texture2D image;
 
         public void DrawToolbar()
         {
