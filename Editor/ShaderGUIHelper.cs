@@ -413,6 +413,7 @@ namespace NBShaderEditor
             if (label.Length <= 0) //给FoldOut功能使用。
             {
                 rect.x += 2f;
+                rect.width -= 24f;//避免覆盖ResetButton
                 isToggle = EditorGUI.Toggle(rect, isToggle, EditorStyles.toggle);
                 resetButtonRect.x = resetButtonRect.x + resetButtonRect.width - ResetTool.ResetButtonSize;
                 resetButtonRect.width = ResetTool.ResetButtonSize;
@@ -516,6 +517,11 @@ namespace NBShaderEditor
             if (rect.width <= 0)
             {
                 ResetTool.EndResetModifyButtonScope();//如果是DrawFoldOut，需要在DrawFoldOut里去结束。
+            }
+
+            if (ResetTool.IsInitResetData)
+            {
+                onEndChangeCheck();
             }
         }
 
@@ -1517,6 +1523,7 @@ namespace NBShaderEditor
                 drawOnValueChangedBlock?.Invoke(property);
                 ResetTool.CheckOnValueChange((label,propertyName));
             };
+           
 
             EditorGUILayout.BeginHorizontal();
             mode = EditorGUILayout.Popup(new GUIContent(label), (int)mode, optionGUIContents);
@@ -1533,6 +1540,11 @@ namespace NBShaderEditor
             drawBlock?.Invoke(property);
             ResetTool.EndResetModifyButtonScope();
             EditorGUI.showMixedValue = false;
+            
+            if (ResetTool.IsInitResetData)
+            {
+                drawOnValueChanged();
+            }
         }
 
         public MaterialProperty GetProperty(string propertyName)
