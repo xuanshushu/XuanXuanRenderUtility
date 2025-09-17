@@ -524,7 +524,7 @@ namespace NBShaderEditor
 
             if (ResetTool.IsInitResetData)
             {
-                onEndChangeCheck();
+                ResetTool.CheckOnValueChange((label,propertyPack.name));//为什么是在这里验证而不是再ResetTool里。
             }
         }
 
@@ -1545,7 +1545,7 @@ namespace NBShaderEditor
             
             if (ResetTool.IsInitResetData)
             {
-                drawOnValueChanged();
+                ResetTool.CheckOnValueChange((label,propertyName));//为什么是在这里验证而不是再ResetTool里。
             }
         }
 
